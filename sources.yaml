@@ -18,10 +18,10 @@ feeds:
     type: rss
     url: https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
 
-  - name: VentureBeat AI
+  - name: VentureBeat
     category: 뉴스
     type: rss
-    url: https://venturebeat.com/category/ai/feed/
+    url: https://venturebeat.com/feed/    # 메인 피드(라이브). /category/ai/feed 는 2026-05에 멈춰서 사용 안 함
 
   - name: MIT Technology Review AI
     category: 뉴스
