@@ -1,0 +1,78 @@
+# =============================================================
+#  AI 뉴스 크롤링 소스 목록
+#  - 여기에 원하는 사이트를 자유롭게 추가/삭제하세요.
+#  - type: rss        → 사이트 자체 RSS 피드
+#  - type: googlenews → RSS가 없는 곳(랩 블로그 등)을 구글뉴스로 대신 수집
+#  - category: 슬랙/시트에 표시될 분류 (뉴스 / 랩블로그 / 뉴스레터 / 리서치 / 커뮤니티)
+# =============================================================
+
+feeds:
+  # ---------- 뉴스 미디어 ----------
+  - name: TechCrunch AI
+    category: 뉴스
+    type: rss
+    url: https://techcrunch.com/category/artificial-intelligence/feed/
+
+  - name: The Verge AI
+    category: 뉴스
+    type: rss
+    url: https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+
+  - name: VentureBeat AI
+    category: 뉴스
+    type: rss
+    url: https://venturebeat.com/category/ai/feed/
+
+  - name: MIT Technology Review AI
+    category: 뉴스
+    type: rss
+    url: https://www.technologyreview.com/topic/artificial-intelligence/feed
+
+  - name: Ars Technica AI
+    category: 뉴스
+    type: rss
+    url: https://arstechnica.com/ai/feed/
+
+  # ---------- 랩 / 기업 블로그 ----------
+  # (아래 3곳은 공식 RSS가 없거나 불안정해 구글뉴스로 대신 긁습니다)
+  - name: OpenAI
+    category: 랩블로그
+    type: rss
+    url: https://openai.com/news/rss.xml
+
+  - name: Anthropic
+    category: 랩블로그
+    type: googlenews
+    query: Anthropic Claude
+
+  - name: Google DeepMind
+    category: 랩블로그
+    type: googlenews
+    query: Google DeepMind
+
+  - name: Meta AI
+    category: 랩블로그
+    type: googlenews
+    query: Meta AI Llama
+
+  # ---------- 뉴스레터 / 커뮤니티 ----------
+  - name: The Batch (DeepLearning.AI)
+    category: 뉴스레터
+    type: googlenews
+    query: DeepLearning.AI The Batch Andrew Ng
+
+  - name: Import AI
+    category: 뉴스레터
+    type: rss
+    url: https://importai.substack.com/feed
+
+  - name: Hacker News (AI)
+    category: 커뮤니티
+    type: rss
+    url: https://hnrss.org/newest?q=AI
+
+  # ---------- 리서치 ----------
+  - name: arXiv cs.AI
+    category: 리서치
+    type: rss
+    url: http://export.arxiv.org/rss/cs.AI

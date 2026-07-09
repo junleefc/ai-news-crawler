@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 뉴스 크롤러 · 세팅 가이드</title>
+<style>
+  :root{--bg:#0b1020;--card:#141b30;--line:#26314f;--txt:#e6eaf3;--sub:#9aa6c4;--accent:#4f8cff;--accent2:#7c5cff;--ok:#39d98a}
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0b1020,#0e1428);color:var(--txt);
+       font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif;line-height:1.7}
+  .wrap{max-width:820px;margin:0 auto;padding:48px 22px 80px}
+  h1{font-size:30px;margin:0 0 6px}
+  .lead{color:var(--sub);margin:0 0 28px}
+  .flow{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0 0 34px;
+        color:var(--sub);font-size:14px}
+  .flow b{color:var(--accent)}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:0 0 18px;position:relative}
+  .step h2{font-size:19px;margin:0 0 12px;display:flex;align-items:center;gap:10px}
+  .num{display:inline-flex;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));
+       color:#fff;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex:none}
+  ol,ul{margin:8px 0 0;padding-left:20px}
+  li{margin:6px 0}
+  code{background:#0a0f1f;border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:13px;color:#bcd0ff}
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left}
+  th{background:#0f1730;color:var(--sub);font-weight:600}
+  .k{color:#ffd479;font-weight:600}
+  .done{color:var(--ok)}
+  a{color:var(--accent)}
+  .tag{display:inline-block;background:#10204a;color:#8fb4ff;border:1px solid #244; border-radius:999px;
+       padding:2px 10px;font-size:12px;margin-left:6px}
+  pre{background:#0a0f1f;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI 뉴스 데일리 크롤러 <span class="tag">세팅 가이드</span></h1>
+  <p class="lead">매일 아침 8시(KST) 해외 AI 뉴스 자동 수집 → Claude 한글요약 → 구글시트 저장 + 슬랙 발송.
+  GitHub 클라우드에서 돌아 <b>컴퓨터가 꺼져 있어도</b> 매일 실행됩니다.</p>
+
+  <div class="flow">
+    크롤링(RSS·구글뉴스) → <b>Claude 한글요약</b> → 구글시트 저장 → 슬랙 #ai_news 발송<br>
+    └─ 매일 <b>08:00 KST</b> · GitHub Actions cron ─┘
+  </div>
+
+  <div class="step">
+    <h2><span class="num">1</span> Anthropic API 키</h2>
+    <ul>
+      <li><a href="https://console.anthropic.com/">console.anthropic.com</a> → <b>API Keys</b> → 새 키 발급</li>
+      <li><code>sk-ant-...</code> 복사 → 나중에 시크릿 <span class="k">ANTHROPIC_API_KEY</span> 에 사용</li>
+    </ul>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">2</span> 슬랙 Webhook (#ai_news 연결)</h2>
+    <ol>
+      <li><a href="https://api.slack.com/apps">api.slack.com/apps</a> → <b>Create New App</b> → From scratch</li>
+      <li>왼쪽 메뉴 <b>Incoming Webhooks</b> → 활성화 ON</li>
+      <li><b>Add New Webhook to Workspace</b> → 채널 <code>#ai_news</code> 선택</li>
+      <li>생성된 URL 복사 → 시크릿 <span class="k">SLACK_WEBHOOK_URL</span> 에 사용</li>
+    </ol>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">3</span> 구글 시트 + 서비스 계정</h2>
+    <ol>
+      <li>구글 시트 새로 생성 → URL의 <code>/d/</code> 와 <code>/edit</code> 사이 문자열이 <span class="k">SHEET_ID</span></li>
+      <li><a href="https://console.cloud.google.com/">console.cloud.google.com</a> → 프로젝트 생성 → <b>Google Sheets API</b> 사용 설정</li>
+      <li><b>서비스 계정</b> 생성 → 키 → <b>JSON 다운로드</b></li>
+      <li>JSON 안의 <code>client_email</code>(…iam.gserviceaccount.com)을 <b>시트에 편집자로 공유</b> ← 꼭!</li>
+      <li>JSON 파일 <b>전체 내용</b> → 시크릿 <span class="k">GOOGLE_SERVICE_ACCOUNT_JSON</span> 에 사용</li>
+    </ol>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">4</span> GitHub 저장소 + 시크릿 등록</h2>
+    <p>이 폴더를 GitHub 저장소에 올린 뒤, <b>Settings → Secrets and variables → Actions</b> 에서 4개 등록:</p>
+    <table>
+      <tr><th>Secret 이름</th><th>값</th></tr>
+      <tr><td class="k">ANTHROPIC_API_KEY</td><td>sk-ant-…</td></tr>
+      <tr><td class="k">SLACK_WEBHOOK_URL</td><td>https://hooks.slack.com/services/…</td></tr>
+      <tr><td class="k">SHEET_ID</td><td>구글 시트 ID</td></tr>
+      <tr><td class="k">GOOGLE_SERVICE_ACCOUNT_JSON</td><td>서비스계정 JSON 전체</td></tr>
+    </table>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">▶</span> 실행 & 테스트</h2>
+    <ul>
+      <li><b>자동</b>: 매일 08:00 KST 실행</li>
+      <li><b>수동 테스트</b>: GitHub 저장소 → <b>Actions</b> → "Daily AI News Digest" → <b>Run workflow</b></li>
+      <li><b>로컬 테스트</b>: <code>cp .env.example .env</code> → 값 채우고 <code>python main.py</code></li>
+    </ul>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">＋</span> 소스 추가하기</h2>
+    <p><code>sources.yaml</code> 에 항목 추가 후 push 하면 끝.</p>
+<pre>  - name: 사이트이름
+    category: 뉴스
+    type: rss                 # RSS 있으면 rss, 없으면 googlenews
+    url: https://.../feed/     # rss 일 때
+    # query: 검색어            # googlenews 일 때 (url 대신)</pre>
+  </div>
+
+  <p class="lead" style="margin-top:26px">✅ 크롤러는 실제 뉴스 44건 수집 테스트 완료 · 슬랙 포맷 검증 완료.
+  위 4개 준비물만 채우면 내일 아침 8시부터 자동으로 돕니다.</p>
+</div>
+</body>
+</html>

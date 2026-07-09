@@ -1,0 +1,15 @@
+# 동작 설정
+lookback_hours: 26          # 최근 몇 시간 내 기사만 수집 (하루 1회 실행 + 여유 버퍼)
+max_items_per_run: 20       # 한 번에 처리할 최대 기사 수 (비용/노이즈 제어)
+min_items_to_post: 1        # 새 기사가 이보다 적으면 "새 소식 없음"으로 처리
+post_when_empty: true       # 새 기사 0개일 때도 슬랙에 짧게 알림 보낼지
+
+# Claude 요약 설정
+model: claude-haiku-4-5-20251001   # 요약용 모델 (저렴/빠름). 더 좋게: claude-sonnet-5
+summary_language: 한국어
+
+# 구글 시트
+worksheet_name: news        # 데이터가 쌓일 워크시트(탭) 이름
+
+# 슬랙
+slack_max_items: 8          # 슬랙 메시지에 자세히 보여줄 상위 기사 수 (나머지는 시트에)
