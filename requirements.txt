@@ -1,4 +1,5 @@
 feedparser==6.0.11
+trafilatura==1.12.2
 anthropic==0.40.0
 gspread==6.1.4
 google-auth==2.35.0

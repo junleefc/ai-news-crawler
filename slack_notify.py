@@ -1,38 +1,50 @@
-"""슬랙 Incoming Webhook으로 다이제스트 발송."""
+"""슬랙 Incoming Webhook 발송 (엄선 기사, 여러 메시지로 분할)."""
 import requests
 
-FIRE = {"높음": " :fire:", "중간": "", "낮음": ""}
-NUM = ["", ":one:", ":two:", ":three:", ":four:", ":five:",
-       ":six:", ":seven:", ":eight:", ":nine:", ":keycap_ten:"]
-ORDER = {"높음": 0, "중간": 1, "낮음": 2}
+TYPE_EMOJI = {"심층분석": ":green_circle:", "오피니언·전략": ":large_blue_circle:", "실전케이스": ":large_purple_circle:"}
+
+
+def _stars(n):
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        n = 0
+    return "★" * n + "☆" * (5 - n)
 
 
 def _sheet_link(sheet_id):
     return f"https://docs.google.com/spreadsheets/d/{sheet_id}"
 
 
-def build_message(items, date_str, sheet_id, max_items=8):
-    total = len(items)
-    items_sorted = sorted(items, key=lambda x: ORDER.get(x.get("importance"), 1))
-    top = items_sorted[:max_items]
-
-    lines = [
-        f":robot_face: *오늘의 해외 AI 뉴스* ({date_str})",
-        f"_새 소식 {total}건 · 구글시트에 자동 저장됨_",
-        "",
-    ]
-    for i, it in enumerate(top, 1):
-        num = NUM[i] if i < len(NUM) else f"{i}."
-        lines.append(f"{num} *{it['ko_headline']}*{FIRE.get(it.get('importance'), '')}")
-        lines.append(it["ko_summary"])
-        lines.append(f":link: <{it['url']}|{it['source']}>")
-        lines.append("")
-
-    remaining = total - len(top)
-    if remaining > 0:
-        lines.append(f"_...외 {remaining}건은 구글시트에서 확인_")
-    lines.append(f":bar_chart: <{_sheet_link(sheet_id)}|전체 아카이브(구글시트) 열기>")
+def _item_block(it, rank):
+    emoji = TYPE_EMOJI.get(it.get("type"), ":white_circle:")
+    headline = it.get("ko_headline") or it.get("title", "")
+    lines = [f"*{rank}. {headline}*  {emoji} {it.get('type','')} {_stars(it.get('insight'))}"]
+    if it.get("why"):
+        lines.append(f"_{it['why']}_")
+    for b in it.get("summary_bullets", [])[:3]:   # 슬랙엔 핵심 3개 (전체는 시트에)
+        lines.append(f"• {b}")
+    if it.get("keywords"):
+        lines.append("🏷 " + " · ".join(it["keywords"]))
+    lines.append(f"🔗 <{it['url']}|{it['source']}>")
     return "\n".join(lines)
+
+
+def build_messages(items, date_str, sheet_id, per_message=6):
+    """엄선 기사들을 per_message개씩 나눠 메시지 리스트로 반환."""
+    items = sorted(items, key=lambda x: x.get("insight", 0), reverse=True)
+    msgs = []
+    header = (
+        f":robot_face: *오늘의 해외 AI 인사이트* ({date_str})\n"
+        f"_엄선 {len(items)}건 · 심층분석/전략/실전케이스 위주 · 전체 요약은 구글시트_\n"
+        f":bar_chart: <{_sheet_link(sheet_id)}|구글시트 아카이브 열기>"
+    )
+    for i in range(0, len(items), per_message):
+        chunk = items[i : i + per_message]
+        blocks = [_item_block(it, i + j + 1) for j, it in enumerate(chunk)]
+        body = "\n\n".join(blocks)
+        msgs.append(f"{header}\n\n{body}" if i == 0 else body)
+    return msgs
 
 
 def post(webhook_url, text):
@@ -41,9 +53,10 @@ def post(webhook_url, text):
     return resp
 
 
+def post_all(webhook_url, messages):
+    for m in messages:
+        post(webhook_url, m)
+
+
 def post_empty(webhook_url, date_str):
-    text = (
-        f":robot_face: *오늘의 해외 AI 뉴스* ({date_str})\n"
-        "_지난 하루 새로 수집된 소식이 없습니다._"
-    )
-    return post(webhook_url, text)
+    post(webhook_url, f":robot_face: *오늘의 해외 AI 인사이트* ({date_str})\n_기준을 통과한 새 글이 없습니다._")

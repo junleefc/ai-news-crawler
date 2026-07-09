@@ -71,6 +71,27 @@ feeds:
     type: rss
     url: https://hnrss.org/newest?q=AI
 
+  # ---------- 분석 / 오피니언 (인사이트 중심) ----------
+  - name: One Useful Thing (Ethan Mollick)
+    category: 분석·오피니언
+    type: rss
+    url: https://www.oneusefulthing.org/feed
+
+  - name: Simon Willison
+    category: 분석·오피니언
+    type: rss
+    url: https://simonwillison.net/atom/everything/
+
+  - name: Platformer (Casey Newton)
+    category: 분석·오피니언
+    type: rss
+    url: https://www.platformer.news/rss/
+
+  - name: Stratechery
+    category: 분석·오피니언
+    type: rss
+    url: https://stratechery.com/feed/
+
   # ---------- 리서치 ----------
   - name: arXiv cs.AI
     category: 리서치
