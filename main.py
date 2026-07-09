@@ -70,6 +70,13 @@ def main():
 
     print("5) 2단계 심층요약...")
     selected = summarizer.summarize(selected, key, cfg.get("summary_model"))
+    dropped = [it for it in selected if it.get("_thin")]
+    selected = [it for it in selected if not it.get("_thin") and it.get("summary_bullets")]
+    if dropped:
+        print(f"   본문 확보 실패로 {len(dropped)}건 제외 (구글뉴스 리다이렉트 등)")
+    if not selected:
+        slack_notify.post_empty(webhook, date_str)
+        return
 
     print("6) 시트 저장...")
     sheets_store.append_items(ws, selected)

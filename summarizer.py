@@ -25,7 +25,11 @@ def _extract_json(text):
 
 def summarize_one(item, api_key, model, client=None):
     client = client or Anthropic(api_key=api_key)
-    body = item.get("fulltext") or item.get("snippet") or item["title"]
+    body = (item.get("fulltext") or item.get("snippet") or "").strip()
+    # 본문을 못 얻으면(구글뉴스 리다이렉트 등) 억지 요약 대신 표시만 하고 제외 대상으로.
+    if len(body) < 150:
+        item.update(ko_headline=item["title"], why="", summary_bullets=[], keywords=[], _thin=True)
+        return item
     prompt = (
         f"제목: {item['title']}\n출처: {item['source']}\n\n원문:\n{body}\n\n"
         '아래 JSON만 출력:\n'

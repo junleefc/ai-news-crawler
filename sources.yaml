@@ -47,8 +47,8 @@ feeds:
 
   - name: Google DeepMind
     category: 랩블로그
-    type: googlenews
-    query: Google DeepMind
+    type: rss
+    url: https://deepmind.google/blog/rss.xml
 
   - name: Meta AI
     category: 랩블로그
