@@ -2,8 +2,9 @@ name: Daily AI News Digest
 
 on:
   schedule:
-    # [테스트] 23:41 UTC = 08:41 KST — 자동 실행 확인용. 확인되면 "0 23"(08:00)로 복귀
-    - cron: "41 23 * * *"
+    # 22:07 UTC = 07:07 KST, 23:07 UTC = 08:07 KST (정각 회피 + 여러 번 시도로 누락 대비)
+    - cron: "7 22 * * *"
+    - cron: "7 23 * * *"
   workflow_dispatch: {}   # 깃허브에서 수동 실행 버튼
 
 jobs:
