@@ -66,14 +66,15 @@ def main():
 
     print("4) 원문 긁기...")
     for it in selected:
-        it["fulltext"] = fetcher.fetch_fulltext(it["url"], fallback=it.get("snippet", ""))
+        it["fulltext"] = fetcher.fetch_fulltext(it["url"])
 
     print("5) 2단계 심층요약...")
-    selected = summarizer.summarize(selected, key, cfg.get("summary_model"))
+    selected = summarizer.summarize(selected, key, cfg.get("summary_model"),
+                                    min_body_chars=cfg.get("min_body_chars", 700))
     dropped = [it for it in selected if it.get("_thin")]
     selected = [it for it in selected if not it.get("_thin") and it.get("summary_bullets")]
     if dropped:
-        print(f"   본문 확보 실패로 {len(dropped)}건 제외 (구글뉴스 리다이렉트 등)")
+        print(f"   원문 확보 실패로 {len(dropped)}건 제외 (환각 방지 — 요약 안 함)")
     if not selected:
         slack_notify.post_empty(webhook, date_str)
         return
