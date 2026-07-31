@@ -54,11 +54,14 @@ def collect_ratings(token, channel, ws, sheets_store, rating_emojis, wait_days=2
     return len(results)
 
 
-def build_profile(ws, sheets_store, interests, uninterests, max_terms=15):
-    """평가 데이터 + 기본 관심사로 선별 AI에 넘길 취향 프로필 텍스트 생성."""
+def build_profile(ws, sheets_store, interests, uninterests, max_terms=15, manual=None):
+    """평가 데이터 + 기본 관심사 + 사용자 직접 지시로 취향 프로필 텍스트 생성."""
     lines = ["[사용자 관심사]"]
     lines += [f"- 관심: {i}" for i in interests]
     lines += [f"- 비관심: {u}" for u in uninterests]
+    if manual:
+        lines.append("[사용자가 직접 적은 지시 — 최우선 반영]")
+        lines += [f"- {m}" for m in manual]
 
     rated = sheets_store.rated_rows(ws)
     if rated:
@@ -85,3 +88,25 @@ def build_profile(ws, sheets_store, interests, uninterests, max_terms=15):
         n_real = sum(1 for r in rated if r["rating"] != "무반응")
         lines.append(f"(평가 데이터: 명시 평가 {n_real}건, 무반응 포함 {len(rated)}건 기반)")
     return "\n".join(lines)
+
+
+def build_stats(ws, sheets_store, top=10):
+    """profile 탭에 함께 기록할 평가 통계 (사람이 보기 좋은 형태)."""
+    rated = sheets_store.rated_rows(ws)
+    if not rated:
+        return ["[평가 현황] 아직 평가 데이터가 없습니다. 슬랙에서 🔥👍👎를 눌러주세요."]
+    cnt = Counter(r["rating"] for r in rated)
+    out = ["[평가 현황]",
+           f"- 🔥최고 {cnt.get('최고',0)} / 👍좋다 {cnt.get('좋다',0)} / "
+           f"👎별로 {cnt.get('별로',0)} / 무반응 {cnt.get('무반응',0)}  (총 {len(rated)}건)"]
+    src = Counter()
+    for r in rated:
+        if r["rating"] in ("최고", "좋다"):
+            src[r["source"]] += 1
+    if src:
+        out.append("[좋아한 출처 TOP] " + ", ".join(f"{s}({c})" for s, c in src.most_common(top)))
+    liked = [r["title"] for r in rated if r["rating"] == "최고"][:5]
+    if liked:
+        out.append("[🔥 최고로 꼽은 기사]")
+        out += [f"  · {t}" for t in liked]
+    return out

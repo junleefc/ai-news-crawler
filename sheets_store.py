@@ -80,6 +80,63 @@ def write_ratings(ws, row_ratings):
     ws.update_cells(cells)
 
 
+PROFILE_SHEET = "profile"
+MANUAL_MARK = "[직접 지시]"
+
+
+def open_profile_sheet(sheet_id):
+    """취향 프로필 탭 (없으면 생성). 사용자가 직접 읽고 수정할 수 있는 문서."""
+    gc = _client()
+    sh = gc.open_by_key(sheet_id)
+    try:
+        return sh.worksheet(PROFILE_SHEET)
+    except gspread.WorksheetNotFound:
+        ws = sh.add_worksheet(title=PROFILE_SHEET, rows=200, cols=4)
+        ws.update(range_name="A1", values=[
+            ["내 취향 프로필 (매일 아침 자동 갱신)"],
+            [""],
+            ["아래 '직접 지시' 칸(B열)에 원하는 내용을 적으면 다음날 선별에 반영됩니다."],
+            ["예: 국내 AI 소식도 넣어줘 / 채용·인사 관련은 빼줘"],
+            [""],
+        ])
+        return ws
+
+
+def read_manual_directives(sheet_id):
+    """profile 탭 B열에 사용자가 직접 적은 지시문 수집."""
+    try:
+        ws = open_profile_sheet(sheet_id)
+        col = ws.col_values(2)
+        return [c.strip() for c in col if c.strip()]
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] 직접 지시 읽기 실패: {e}")
+        return []
+
+
+def write_profile(sheet_id, profile_text, stats_lines=None):
+    """생성된 취향 프로필을 profile 탭에 기록 (사용자가 눈으로 확인)."""
+    try:
+        ws = open_profile_sheet(sheet_id)
+        updated = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M")
+        manual = read_manual_directives(sheet_id)
+        rows = [["내 취향 프로필 (매일 아침 자동 갱신)", "직접 지시 (여기에 적으면 반영됨)"],
+                [f"마지막 갱신: {updated}", ""],
+                ["", ""]]
+        for line in profile_text.split("\n"):
+            rows.append([line, ""])
+        if stats_lines:
+            rows.append(["", ""])
+            for s in stats_lines:
+                rows.append([s, ""])
+        ws.clear()
+        ws.update(range_name="A1", values=rows)
+        # 사용자가 적어둔 직접 지시는 지워지지 않게 복원
+        if manual:
+            ws.update(range_name="B2", values=[[m] for m in manual])
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] 프로필 기록 실패: {e}")
+
+
 def rated_rows(ws):
     """평가가 기록된 행들: [(rating, keywords, type, source, title)]"""
     values = ws.get_all_values()

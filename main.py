@@ -53,8 +53,14 @@ def main():
         print("0) 이모지 평가 수거...")
         feedback.collect_ratings(bot_token, channel, ws, sheets_store,
                                  cfg.get("rating_emojis", {}), cfg.get("feedback_wait_days", 2))
+    manual = sheets_store.read_manual_directives(sheet_id)
+    if manual:
+        print(f"   직접 지시 {len(manual)}건 반영")
     profile = feedback.build_profile(ws, sheets_store,
-                                     cfg.get("interests", []), cfg.get("uninterests", []))
+                                     cfg.get("interests", []), cfg.get("uninterests", []),
+                                     manual=manual)
+    # 취향 프로필을 시트 'profile' 탭에 기록 (사용자가 눈으로 확인/수정)
+    sheets_store.write_profile(sheet_id, profile, feedback.build_stats(ws, sheets_store))
 
     print("1) 넓게 수집...")
     items = crawler.crawl(feeds, lookback_hours=cfg.get("lookback_hours", 28),
