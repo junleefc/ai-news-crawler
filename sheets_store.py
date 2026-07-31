@@ -48,7 +48,8 @@ def append_items(ws, items):
             today, it["source"], it.get("type", ""), it.get("insight", ""),
             it.get("ko_headline", it["title"]), it.get("why", ""),
             summary, ", ".join(it.get("keywords", [])), it["url"],
-            it.get("slack_ts", ""), "",
+            # ts는 반드시 문자열로 (USER_ENTERED면 시트가 숫자로 반올림해 뒷자리 유실 → 리액션 조회 실패)
+            f"'{it.get('slack_ts', '')}" if it.get("slack_ts") else "", "",
         ])
     ws.append_rows(rows, value_input_option="USER_ENTERED")
 
@@ -58,7 +59,7 @@ def rows_pending_rating(ws):
     values = ws.get_all_values()
     pending = []
     for idx, r in enumerate(values[1:], start=2):
-        ts = r[TS_COL - 1].strip() if len(r) >= TS_COL else ""
+        ts = r[TS_COL - 1].strip().lstrip("'") if len(r) >= TS_COL else ""
         rating = r[RATING_COL - 1].strip() if len(r) >= RATING_COL else ""
         if ts and not rating:
             pending.append({
