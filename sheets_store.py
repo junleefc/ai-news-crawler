@@ -106,8 +106,10 @@ def read_manual_directives(sheet_id):
     """profile 탭 B열에 사용자가 직접 적은 지시문 수집."""
     try:
         ws = open_profile_sheet(sheet_id)
-        col = ws.col_values(2)
-        return [c.strip() for c in col if c.strip()]
+        col = ws.col_values(2)[1:]  # 1행은 헤더라 제외
+        skip = ("직접 지시", "여기에 적으면")
+        return [c.strip() for c in col
+                if c.strip() and not any(s in c for s in skip)]
     except Exception as e:  # noqa: BLE001
         print(f"[warn] 직접 지시 읽기 실패: {e}")
         return []
