@@ -63,31 +63,37 @@ def build_profile(ws, sheets_store, interests, uninterests, max_terms=15, manual
         lines.append("[사용자가 직접 적은 지시 — 최우선 반영]")
         lines += [f"- {m}" for m in manual]
 
-    rated = sheets_store.rated_rows(ws)
+    rated = [r for r in rated_clean(sheets_store.rated_rows(ws))]
     if rated:
-        pos, neg = Counter(), Counter()
+        # 주제(키워드)와 출처를 분리 집계하고, 순점수(좋아요-싫어요)로 판단.
+        # 양쪽에 다 나오는 항목은 상쇄돼 사라짐 → 노이즈 제거, 확실한 신호만 남김.
+        W = {"최고": 2, "좋다": 1, "별로": -2, "무반응": -1}
+        topic, source = Counter(), Counter()
         for r in rated:
-            terms = [k.strip() for k in r["keywords"].split(",") if k.strip()]
-            terms.append(f"출처:{r['source']}")
-            if r["rating"] == "최고":
-                for t in terms:
-                    pos[t] += 2
-            elif r["rating"] == "좋다":
-                for t in terms:
-                    pos[t] += 1
-            elif r["rating"] == "별로":
-                for t in terms:
-                    neg[t] += 2
-            elif r["rating"] == "무반응":
-                for t in terms:
-                    neg[t] += 1  # 약한 부정
-        if pos:
-            lines.append("[실제 평가에서 좋아한 주제] " + ", ".join(t for t, _ in pos.most_common(max_terms)))
-        if neg:
-            lines.append("[실제 평가에서 반응 없거나 싫어한 주제] " + ", ".join(t for t, _ in neg.most_common(max_terms)))
+            w = W.get(r["rating"], 0)
+            for k in (x.strip() for x in r["keywords"].split(",")):
+                if k:
+                    topic[k] += w
+            if r["source"]:
+                source[r["source"]] += w
+        liked = [t for t, s in topic.most_common() if s > 0][:max_terms]
+        disliked = [t for t, s in sorted(topic.items(), key=lambda x: x[1]) if s < 0][:max_terms]
+        if liked:
+            lines.append("[좋아한 주제] " + ", ".join(liked))
+        if disliked:
+            lines.append("[싫어한 주제] " + ", ".join(disliked))
+        src_like = [s for s, v in source.most_common() if v > 0][:5]
+        if src_like:
+            lines.append("[선호 출처(약한 신호)] " + ", ".join(src_like))
         n_real = sum(1 for r in rated if r["rating"] != "무반응")
         lines.append(f"(평가 데이터: 명시 평가 {n_real}건, 무반응 포함 {len(rated)}건 기반)")
     return "\n".join(lines)
+
+
+def rated_clean(rows):
+    """테스트/시스템 행은 학습에서 제외."""
+    return [r for r in rows
+            if r.get("source") != "System" and "테스트" not in (r.get("title") or "")]
 
 
 def build_stats(ws, sheets_store, top=10):
