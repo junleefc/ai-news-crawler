@@ -88,8 +88,11 @@ def main():
         return
 
     print("4) 원문 긁기...")
+    cap = cfg.get("firecrawl_daily_cap", 20)
     for it in selected:
-        it["fulltext"] = fetcher.fetch_fulltext(it["url"])
+        it["fulltext"] = fetcher.fetch_fulltext(it["url"], firecrawl_cap=cap)
+    if os.environ.get("FIRECRAWL_API_KEY"):
+        print(f"   firecrawl 사용: {fetcher.firecrawl_used()}/{cap} 크레딧")
 
     print("5) 심층요약 (원문 기반만)...")
     selected = summarizer.summarize(selected, key, cfg.get("summary_model"),
