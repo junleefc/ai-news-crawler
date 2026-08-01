@@ -9,7 +9,7 @@ import requests
 
 API = "https://slack.com/api"
 TYPE_EMOJI = {"심층분석": ":green_circle:", "오피니언·전략": ":large_blue_circle:", "실전케이스": ":large_purple_circle:"}
-SEED_REACTIONS = ["fire", "+1", "-1"]  # 🔥최고 👍좋다 👎별로
+SEED_REACTIONS = ["five", "four", "three", "two", "one"]  # 5️⃣최고 … 1️⃣최악
 
 
 def _stars(n):
@@ -63,8 +63,8 @@ def send_digest_bot(token, channel, items, date_str, sheet_id):
     items = sorted(items, key=lambda x: x.get("insight", 0), reverse=True)
     header = (
         f":robot_face: *오늘의 해외 AI 인사이트* ({date_str})\n"
-        f"_엄선 {len(items)}건 — 스레드에서 1건씩 확인하고 이모지로 평가해주세요_\n"
-        f":fire: 최고  :+1: 좋다  :-1: 별로  (평가는 다음날 취향 학습에 반영)\n"
+        f"_엄선 {len(items)}건 — 스레드에서 1건씩 확인하고 숫자로 평가해주세요_\n"
+        f":five: 최고  :four: 좋음  :three: 보통  :two: 별로  :one: 최악  (다음날 취향 학습에 반영)\n"
         f":bar_chart: <{_sheet_link(sheet_id)}|전체 아카이브(구글시트)>"
     )
     head_ts = _bot_post(token, channel, header)
@@ -74,6 +74,7 @@ def send_digest_bot(token, channel, items, date_str, sheet_id):
             it["slack_ts"] = ts
             for name in SEED_REACTIONS:
                 _bot_react(token, channel, ts, name)
+                time.sleep(0.35)  # 이모지 5개 연속 → rate limit 회피
         except Exception as e:  # noqa: BLE001
             print(f"[warn] 슬랙 발송 실패({it.get('url')}): {e}")
             it["slack_ts"] = ""
