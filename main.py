@@ -78,10 +78,14 @@ def main():
 
     print("3) 평가·선별 (관심적합도 반영)...")
     items = evaluator.evaluate(items, key, cfg.get("filter_model"), profile=profile)
-    selected = evaluator.select(items, cfg.get("keep_types", []),
-                                cfg.get("min_insight_score", 3), cfg.get("curated_count", 30),
-                                min_fit=cfg.get("min_fit_score", 3))
-    print(f"   선별 {len(selected)}건")
+    want = cfg.get("curated_count", 30)
+    # 중복 제거로 빠지는 만큼 다른 기사가 채워지도록 넉넉히 뽑은 뒤 잘라낸다.
+    pool = evaluator.select(items, cfg.get("keep_types", []),
+                            cfg.get("min_insight_score", 3), want * 2,
+                            min_fit=cfg.get("min_fit_score", 3))
+    print(f"   1차 선별 {len(pool)}건 → 같은 사건 묶는 중...")
+    selected = evaluator.dedupe_stories(pool, key, cfg.get("filter_model"))[:want]
+    print(f"   최종 선별 {len(selected)}건")
 
     if not selected:
         _post_empty(bot_token, channel, webhook, date_str)

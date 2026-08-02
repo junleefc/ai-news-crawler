@@ -68,6 +68,53 @@ def evaluate(items, api_key, model, profile="", batch_size=25):
     return items
 
 
+DEDUP_SYSTEM = (
+    "너는 뉴스 편집자다. 여러 매체가 보도한 기사 목록에서 '같은 사건/발표를 다룬 기사'를 하나의 그룹으로 묶는다. "
+    "제목이 달라도 동일한 사건(같은 회사의 같은 발표·같은 사고·같은 조치)이면 같은 그룹이다. "
+    "주제가 비슷할 뿐 서로 다른 사건이면 절대 묶지 마라."
+)
+
+
+def dedupe_stories(items, api_key, model):
+    """같은 사건을 다룬 기사들을 묶어 대표 1건만 남긴다 (fit→insight 높은 순)."""
+    if len(items) < 2:
+        return items
+    client = Anthropic(api_key=api_key)
+    lines = "\n".join(
+        json.dumps({"index": i, "title": it["title"], "source": it["source"]}, ensure_ascii=False)
+        for i, it in enumerate(items)
+    )
+    prompt = (
+        "다음 기사들을 같은 사건끼리 묶어라.\n" + lines +
+        '\n\n같은 사건인 그룹만 JSON 배열로 출력(단독 기사는 넣지 마라): '
+        '[{"group":[0,3,7]},{"group":[2,5]}]  없으면 []'
+    )
+    try:
+        resp = client.messages.create(
+            model=model, max_tokens=1500, system=DEDUP_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        groups = _extract_json(resp.content[0].text)
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] 중복 사건 묶기 실패: {e}")
+        return items
+
+    drop = set()
+    for g in groups:
+        idxs = [i for i in g.get("group", []) if isinstance(i, int) and 0 <= i < len(items)]
+        if len(idxs) < 2:
+            continue
+        # 대표: fit → insight 높은 것
+        best = max(idxs, key=lambda i: (items[i].get("fit", 3), items[i].get("insight", 0)))
+        for i in idxs:
+            if i != best:
+                drop.add(i)
+        print(f"   중복 사건 {len(idxs)}건 → 1건: {items[best]['title'][:45]}")
+    if drop:
+        print(f"   중복 제거 {len(drop)}건")
+    return [it for i, it in enumerate(items) if i not in drop]
+
+
 def select(items, keep_types, min_insight, limit, min_fit=1):
     """유형·인사이트·적합도로 거르고, fit 우선 + insight 순으로 상위 N개."""
     passed = [

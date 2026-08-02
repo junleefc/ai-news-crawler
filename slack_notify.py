@@ -8,7 +8,7 @@ import time
 import requests
 
 API = "https://slack.com/api"
-TYPE_EMOJI = {"심층분석": ":green_circle:", "오피니언·전략": ":large_blue_circle:", "실전케이스": ":large_purple_circle:"}
+TYPE_EMOJI = {"심층분석": "🟢", "오피니언·전략": "🔵", "실전케이스": "🟣"}  # 단축코드는 미렌더될 수 있어 문자 직접 사용
 SEED_REACTIONS = ["five", "four", "three", "two", "one"]  # 5️⃣최고 … 1️⃣최악
 
 
@@ -26,7 +26,7 @@ def _sheet_link(sheet_id):
 
 def _item_block(it, rank):
     headline = it.get("ko_headline") or it.get("title", "")
-    emoji = TYPE_EMOJI.get(it.get("type"), ":white_circle:")
+    emoji = TYPE_EMOJI.get(it.get("type"), "⚪")
     lines = [f"*{rank}. {headline}*  {emoji} {it.get('type','')} {_stars(it.get('insight'))}"]
     if it.get("why"):
         lines.append(f"_{it['why']}_")
