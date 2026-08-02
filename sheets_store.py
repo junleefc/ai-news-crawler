@@ -139,6 +139,26 @@ def write_profile(sheet_id, profile_text, stats_lines=None):
         print(f"[warn] 프로필 기록 실패: {e}")
 
 
+def recent_items(ws, days=4):
+    """최근 N일간 발송된 기사 요약 정보 (재탕 판별용)."""
+    from datetime import timedelta
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    cutoff = today - timedelta(days=days)
+    out = []
+    for r in ws.get_all_values()[1:]:
+        try:
+            d = datetime.strptime(r[0], "%Y-%m-%d").date()
+        except (ValueError, IndexError):
+            continue
+        if d >= cutoff:
+            out.append({
+                "title": r[4] if len(r) > 4 else "",
+                "why": r[5] if len(r) > 5 else "",
+                "keywords": r[7] if len(r) > 7 else "",
+            })
+    return out
+
+
 def rated_rows(ws):
     """평가가 기록된 행들: [(rating, keywords, type, source, title)]"""
     values = ws.get_all_values()

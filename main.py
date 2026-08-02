@@ -84,7 +84,12 @@ def main():
                             cfg.get("min_insight_score", 3), want * 2,
                             min_fit=cfg.get("min_fit_score", 3))
     print(f"   1차 선별 {len(pool)}건 → 같은 사건 묶는 중...")
-    selected = evaluator.dedupe_stories(pool, key, cfg.get("filter_model"))[:want]
+    pool = evaluator.dedupe_stories(pool, key, cfg.get("filter_model"))
+    # 최근 발송분과 같은 사건이면서 새 정보 없는 재탕 제외
+    recent = sheets_store.recent_items(ws, cfg.get("stale_lookback_days", 4))
+    if recent:
+        pool = evaluator.filter_stale(pool, recent, key, cfg.get("filter_model"))
+    selected = pool[:want]
     print(f"   최종 선별 {len(selected)}건")
 
     if not selected:

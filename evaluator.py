@@ -115,6 +115,55 @@ def dedupe_stories(items, api_key, model):
     return [it for i, it in enumerate(items) if i not in drop]
 
 
+STALE_SYSTEM = (
+    "너는 뉴스 편집자다. 최근 며칠간 이미 독자에게 보낸 기사 목록이 주어진다. "
+    "새로 들어온 기사가 그중 어떤 사건과 '같은 사건'이면서 '새로운 사실이 없는 재탕'인지 판단한다.\n"
+    "- 같은 사건이어도 새 전개·새 수치·새 당사자·새 조치 등 이전에 없던 정보가 있으면 재탕이 아니다(통과).\n"
+    "- 같은 사건을 관점만 바꿔 다시 정리한 수준이면 재탕이다(제외).\n"
+    "- 이전 목록에 없는 사건이면 당연히 통과."
+)
+
+
+def filter_stale(items, recent, api_key, model):
+    """최근 발송분과 같은 사건이면서 새 정보가 없는 기사를 제외."""
+    if not items or not recent:
+        return items
+    client = Anthropic(api_key=api_key)
+    prev = "\n".join(
+        f"- {r['title']} ({r['keywords']})" for r in recent[-60:]
+    )
+    news = "\n".join(
+        json.dumps({"index": i, "title": it["title"], "snippet": it.get("snippet", "")[:200]},
+                   ensure_ascii=False)
+        for i, it in enumerate(items)
+    )
+    prompt = (
+        f"===== 최근 며칠간 이미 보낸 기사 =====\n{prev}\n\n"
+        f"===== 새로 들어온 기사 =====\n{news}\n\n"
+        '재탕(같은 사건 + 새 정보 없음)인 것만 JSON으로 출력: '
+        '[{"index":0,"reason":"어제 보낸 X와 동일"}]  없으면 []'
+    )
+    try:
+        resp = client.messages.create(
+            model=model, max_tokens=1200, system=STALE_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        stale = _extract_json(resp.content[0].text)
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] 재탕 판별 실패: {e}")
+        return items
+
+    drop = set()
+    for s in stale:
+        i = s.get("index")
+        if isinstance(i, int) and 0 <= i < len(items):
+            drop.add(i)
+            print(f"   재탕 제외: {items[i]['title'][:42]} ({s.get('reason','')[:30]})")
+    if drop:
+        print(f"   이전 발송과 중복 {len(drop)}건 제외")
+    return [it for i, it in enumerate(items) if i not in drop]
+
+
 def select(items, keep_types, min_insight, limit, min_fit=1):
     """유형·인사이트·적합도로 거르고, fit 우선 + insight 순으로 상위 N개."""
     passed = [
