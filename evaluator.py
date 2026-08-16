@@ -54,7 +54,7 @@ def evaluate(items, api_key, model, profile="", batch_size=25):
                 model=model, max_tokens=2000, system=SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
             )
-            for r in _extract_json(resp.content[0].text):
+            for r in _extract_json(next(b.text for b in resp.content if hasattr(b,'text'))):
                 results[r["index"]] = r
         except Exception as e:  # noqa: BLE001
             print(f"[warn] 평가 실패(배치 {b}): {e}")
@@ -94,7 +94,7 @@ def dedupe_stories(items, api_key, model):
             model=model, max_tokens=1500, system=DEDUP_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
-        groups = _extract_json(resp.content[0].text)
+        groups = _extract_json(next(b.text for b in resp.content if hasattr(b,'text')))
     except Exception as e:  # noqa: BLE001
         print(f"[warn] 중복 사건 묶기 실패: {e}")
         return items
@@ -148,7 +148,7 @@ def filter_stale(items, recent, api_key, model):
             model=model, max_tokens=1200, system=STALE_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
-        stale = _extract_json(resp.content[0].text)
+        stale = _extract_json(next(b.text for b in resp.content if hasattr(b,'text')))
     except Exception as e:  # noqa: BLE001
         print(f"[warn] 재탕 판별 실패: {e}")
         return items

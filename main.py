@@ -105,7 +105,8 @@ def main():
 
     print("5) 심층요약 (원문 기반만)...")
     selected = summarizer.summarize(selected, key, cfg.get("summary_model"),
-                                    min_body_chars=cfg.get("min_body_chars", 700))
+                                    min_body_chars=cfg.get("min_body_chars", 700),
+                                    verify_model=cfg.get("verify_model"))
     dropped = [it for it in selected if it.get("_thin")]
     selected = [it for it in selected if not it.get("_thin") and it.get("summary_bullets")]
     if dropped:

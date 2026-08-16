@@ -16,6 +16,8 @@ keep_types:                # 이 유형만 통과 (나머지는 버림)
 filter_model: claude-haiku-4-5-20251001
 # 2단계: 원문 긁어 심층요약 (품질 더 원하면 claude-sonnet-5 로 교체)
 summary_model: claude-haiku-4-5-20251001
+# 3단계: 요약 불릿을 원문과 대조 검증 (환각 제거). 더 엄격한 모델 사용.
+verify_model: claude-sonnet-5
 summary_language: 한국어
 
 # ===== 저장 / 발송 =====
