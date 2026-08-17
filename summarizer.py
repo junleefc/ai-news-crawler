@@ -53,7 +53,7 @@ def summarize_one(item, api_key, model, min_body_chars=700, client=None):
     )
     try:
         resp = client.messages.create(
-            model=model, max_tokens=1200, system=SYSTEM,
+            model=model, max_tokens=8000, system=SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
         r = _extract_json(next(b.text for b in resp.content if hasattr(b,'text')))
@@ -83,7 +83,7 @@ def verify_one(item, model, client, min_kept=2):
     )
     try:
         resp = client.messages.create(
-            model=model, max_tokens=800, system=VERIFY_SYSTEM,
+            model=model, max_tokens=6000, system=VERIFY_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = next(b.text for b in resp.content if hasattr(b, "text"))
