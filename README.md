@@ -59,3 +59,12 @@ api.slack.com/apps → Create App → **Incoming Webhooks** 켜기 → Add New W
     url: https://.../feed/    # rss일 때
     # query: 검색어           # googlenews일 때 (url 대신)
 ```
+
+## 요약 품질 감사
+
+```bash
+python audit.py 2026-08-18 11   # 날짜, 최근 N건 (인자 생략 시 오늘 전체)
+```
+
+요약 불릿이 실제 원문에 근거하는지 재수집해 대조하고, 기사·불릿 단위 오류율을 출력한다.
+(주의: 검증 텍스트를 자르면 뒷부분 내용이 전부 오탐으로 잡힌다 — 과거 이 버그로 수치가 44%까지 부풀려진 적 있음)
