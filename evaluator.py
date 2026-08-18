@@ -115,6 +115,38 @@ def dedupe_stories(items, api_key, model):
     return [it for i, it in enumerate(items) if i not in drop]
 
 
+_STOP = {"ai", "the", "a", "an", "to", "of", "in", "on", "and", "for", "is", "with",
+          "its", "as", "at", "by", "from", "that", "this", "new", "says", "say"}
+
+
+def _title_tokens(s):
+    s = re.sub(r"[^0-9A-Za-z가-힣 ]", " ", (s or "").lower())
+    return {w for w in s.split() if len(w) > 1 and w not in _STOP}
+
+
+def drop_near_duplicates(items, recent, threshold=0.6):
+    """제목 토큰 겹침으로 근사 중복 제거 (LLM 판단 없이 결정적).
+    같은 실행 내부 + 과거 발송분 양쪽 모두와 비교한다."""
+    seen = []
+    for r in recent or []:
+        for t in (r.get("orig_title"), r.get("title")):
+            tk = _title_tokens(t)
+            if len(tk) >= 3:
+                seen.append(tk)
+    kept, dropped = [], 0
+    for it in items:
+        tk = _title_tokens(it.get("title"))
+        if len(tk) >= 3 and any(len(tk & s) / min(len(tk), len(s)) >= threshold for s in seen):
+            dropped += 1
+            print(f"   근사중복 제외: {it.get('title','')[:52]}")
+            continue
+        seen.append(tk)
+        kept.append(it)
+    if dropped:
+        print(f"   제목 유사 중복 {dropped}건 제외")
+    return kept
+
+
 STALE_SYSTEM = (
     "너는 뉴스 편집자다. 최근 며칠간 이미 독자에게 보낸 기사 목록이 주어진다. "
     "새로 들어온 기사가 그중 어떤 사건과 '같은 사건'이면서 '새로운 사실이 없는 재탕'인지 판단한다.\n"
@@ -130,7 +162,7 @@ def filter_stale(items, recent, api_key, model):
         return items
     client = Anthropic(api_key=api_key)
     prev = "\n".join(
-        f"- {r['title']} ({r['keywords']})" for r in recent[-60:]
+        f"- {r['title']} ({r['keywords']})" for r in recent[-300:]
     )
     news = "\n".join(
         json.dumps({"index": i, "title": it["title"], "snippet": it.get("snippet", "")[:200]},
@@ -162,6 +194,23 @@ def filter_stale(items, recent, api_key, model):
     if drop:
         print(f"   이전 발송과 중복 {len(drop)}건 제외")
     return [it for i, it in enumerate(items) if i not in drop]
+
+
+def cap_per_source(items, max_per_source):
+    """한 출처가 목록을 독식하지 않도록 상한을 건다 (fit 높은 순으로 남김)."""
+    if not max_per_source:
+        return items
+    cnt, kept, dropped = {}, [], 0
+    for it in items:
+        src = it.get("source", "")
+        if cnt.get(src, 0) >= max_per_source:
+            dropped += 1
+            continue
+        cnt[src] = cnt.get(src, 0) + 1
+        kept.append(it)
+    if dropped:
+        print(f"   출처 편중 방지로 {dropped}건 제외 (출처당 최대 {max_per_source}건)")
+    return kept
 
 
 def select(items, keep_types, min_insight, limit, min_fit=1):

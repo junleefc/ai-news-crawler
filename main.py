@@ -86,9 +86,14 @@ def main():
     print(f"   1차 선별 {len(pool)}건 → 같은 사건 묶는 중...")
     pool = evaluator.dedupe_stories(pool, key, cfg.get("filter_model"))
     # 최근 발송분과 같은 사건이면서 새 정보 없는 재탕 제외
-    recent = sheets_store.recent_items(ws, cfg.get("stale_lookback_days", 4))
+    recent = sheets_store.recent_items(ws, cfg.get("stale_lookback_days", 7))
+    # (a) 제목 유사도 기반 결정적 제거 — 같은 실행 내부 + 과거 발송분
+    pool = evaluator.drop_near_duplicates(pool, recent,
+                                          cfg.get("title_dup_threshold", 0.6))
+    # (b) 남은 것 중 '같은 사건 + 새 정보 없음'을 LLM으로 판별
     if recent:
         pool = evaluator.filter_stale(pool, recent, key, cfg.get("filter_model"))
+    pool = evaluator.cap_per_source(pool, cfg.get("max_per_source"))
     selected = pool[:want]
     print(f"   최종 선별 {len(selected)}건")
 

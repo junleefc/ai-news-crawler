@@ -8,7 +8,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-HEADER = ["날짜", "출처", "유형", "인사이트", "제목", "왜 중요", "요약", "키워드", "링크", "메시지TS", "평가"]
+HEADER = ["날짜", "출처", "유형", "인사이트", "제목", "왜 중요", "요약", "키워드", "링크", "메시지TS", "평가", "원제"]
 URL_COL = 9    # I열: 링크
 TS_COL = 10    # J열: 슬랙 메시지 ts
 RATING_COL = 11  # K열: 평가 (최고/좋다/별로/무반응)
@@ -50,6 +50,7 @@ def append_items(ws, items):
             summary, ", ".join(it.get("keywords", [])), it["url"],
             # ts는 반드시 문자열로 (USER_ENTERED면 시트가 숫자로 반올림해 뒷자리 유실 → 리액션 조회 실패)
             f"'{it.get('slack_ts', '')}" if it.get("slack_ts") else "", "",
+            it.get("title", ""),   # 원제(영문) — 결정적 중복 판별용
         ])
     ws.append_rows(rows, value_input_option="USER_ENTERED")
 
@@ -155,6 +156,7 @@ def recent_items(ws, days=4):
                 "title": r[4] if len(r) > 4 else "",
                 "why": r[5] if len(r) > 5 else "",
                 "keywords": r[7] if len(r) > 7 else "",
+                "orig_title": r[11] if len(r) > 11 else "",
             })
     return out
 
