@@ -15,9 +15,9 @@ keep_types:                # 이 유형만 통과 (나머지는 버림)
 # 1단계: 스니펫만 보고 유형/점수 매기는 싼 필터
 filter_model: claude-haiku-4-5-20251001
 # 2단계: 원문 긁어 심층요약 (품질 더 원하면 claude-sonnet-5 로 교체)
-# 요약·검증은 정확도가 최우선이라 Opus 사용 (Haiku 44%, Sonnet 33% 환각률)
-summary_model: claude-opus-5
-verify_model: claude-opus-5
+# 요약·검증 모델 (환각 수치는 검증 버그로 부풀려졌던 것 — 재측정 후 조정)
+summary_model: claude-sonnet-5
+verify_model: claude-sonnet-5
 summary_language: 한국어
 
 # ===== 저장 / 발송 =====

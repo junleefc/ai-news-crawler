@@ -2,6 +2,7 @@
 1) trafilatura(무료) 시도 → 2) 실패 시 firecrawl(키 있으면) 폴백.
 둘 다 실패하면 빈 문자열 반환 (스니펫으로 대체하지 않음 → 환각 방지)."""
 import os
+import time
 import requests
 import trafilatura
 
@@ -27,18 +28,26 @@ def _trafilatura(url):
     return ""
 
 
-def _firecrawl(url, key):
-    try:
-        r = requests.post(
-            FIRECRAWL_API, timeout=45,
-            headers={"Authorization": f"Bearer {key}"},
-            json={"url": url, "formats": ["markdown"], "onlyMainContent": True},
-        )
-        if r.ok:
-            return ((r.json().get("data") or {}).get("markdown") or "").strip()
-        print(f"[warn] firecrawl {url}: HTTP {r.status_code}")
-    except Exception as e:  # noqa: BLE001
-        print(f"[warn] firecrawl {url}: {e}")
+def _firecrawl(url, key, attempts=3):
+    """일시적 실패(408/429/5xx/타임아웃)는 재시도. 원문이 빈 채로 넘어가면
+    검증 단계가 멀쩡한 요약을 '근거 없음'으로 오판하므로 여기서 최대한 확보한다."""
+    for i in range(attempts):
+        try:
+            r = requests.post(
+                FIRECRAWL_API, timeout=60,
+                headers={"Authorization": f"Bearer {key}"},
+                json={"url": url, "formats": ["markdown"], "onlyMainContent": True},
+            )
+            if r.ok:
+                return ((r.json().get("data") or {}).get("markdown") or "").strip()
+            if r.status_code not in (408, 429, 500, 502, 503, 504):
+                print(f"[warn] firecrawl {url}: HTTP {r.status_code}")
+                return ""
+            print(f"[info] firecrawl 재시도({i+1}/{attempts}) HTTP {r.status_code}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[info] firecrawl 재시도({i+1}/{attempts}): {e}")
+        time.sleep(2 * (i + 1))
+    print(f"[warn] firecrawl 최종 실패 {url[:60]}")
     return ""
 
 
