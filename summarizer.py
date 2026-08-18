@@ -75,7 +75,7 @@ def verify_one(item, model, client, min_kept=2):
         return item
     listed = "\n".join(f"{i}. {b}" for i, b in enumerate(bullets))
     prompt = (
-        f"===== 원문 =====\n{body[:7000]}\n===== 원문 끝 =====\n\n"
+        f"===== 원문 =====\n{body}\n===== 원문 끝 =====\n\n"
         f"===== 검증할 요약 =====\n제목: {item.get('ko_headline','')}\n"
         f"한줄평: {item.get('why','')}\n불릿:\n{listed}\n\n"
         '각 불릿과 한줄평이 원문에 근거하는지 JSON으로 판정:\n'
