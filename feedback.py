@@ -2,7 +2,9 @@
 
 - 봇이 발송 시 🔥👍👎를 1개씩 미리 달아둠 → 사용자가 탭하면 count가 2가 됨.
   따라서 count >= 2 인 이모지가 사용자의 평가.
-- 발송 후 feedback_wait_days 지나도 반응 없으면 '무반응'으로 확정 (약한 부정 신호).
+- 발송 후 feedback_wait_days 지나도 반응 없으면 '무반응'으로 확정.
+  무반응은 '의견 없음'이지 '싫음'이 아니므로 취향 학습에 반영하지 않는다(가중치 0).
+  싫다는 신호는 사용자가 1점/2점으로 명시적으로 준 것만 쓴다.
 """
 import time
 import re
@@ -41,7 +43,7 @@ def collect_ratings(token, channel, ws, sheets_store, rating_emojis, wait_days=2
             if found:
                 results[p["row"]] = next(l for l in PRIORITY if l in found)
             else:
-                # 반응 없음 → 발송 후 wait_days 지났으면 무반응 확정
+                # 반응 없음 → wait_days 지났으면 '무반응'(의견 없음)으로 확정. 학습엔 미반영.
                 try:
                     sent = datetime.strptime(p["date"], "%Y-%m-%d").date()
                     if (today - sent).days >= wait_days:
@@ -56,7 +58,9 @@ def collect_ratings(token, channel, ws, sheets_store, rating_emojis, wait_days=2
     return len(results)
 
 
-DEFAULT_WEIGHTS = {"5-최고": 3, "4-좋음": 1, "3-보통": 0, "2-별로": -2, "1-최악": -4, "무반응": -0.5}
+# 무반응은 0 — 안 누른 건 '싫다'가 아니라 '의견 없음'이다.
+# 싫다는 표시는 사용자가 1점/2점으로 명시적으로 준다.
+DEFAULT_WEIGHTS = {"5-최고": 3, "4-좋음": 1, "3-보통": 0, "2-별로": -2, "1-최악": -4, "무반응": 0}
 
 
 def build_profile(ws, sheets_store, interests, uninterests, max_terms=15, manual=None, weights=None):
@@ -95,7 +99,7 @@ def build_profile(ws, sheets_store, interests, uninterests, max_terms=15, manual
         if src_like:
             lines.append("[선호 출처(약한 신호)] " + ", ".join(src_like))
         n_real = sum(1 for r in rated if r["rating"] != "무반응")
-        lines.append(f"(평가 데이터: 명시 평가 {n_real}건, 무반응 포함 {len(rated)}건 기반)")
+        lines.append(f"(취향 학습에 쓰인 명시 평가 {n_real}건 기준. 무반응은 의견 없음으로 보고 제외)")
     return "\n".join(lines)
 
 
