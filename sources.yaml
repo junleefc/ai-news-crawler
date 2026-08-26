@@ -97,3 +97,47 @@ feeds:
     category: 리서치
     type: rss
     url: http://export.arxiv.org/rss/cs.AI
+
+  # ---------- 유튜브 (조쉬의 프로덕트레터 원본 소스 채널) ----------
+  # 영상은 자막을 본문으로 사용 (fetcher가 yt-dlp로 자동 추출)
+  - name: Lenny's Podcast (YouTube)
+    category: 유튜브
+    type: rss
+    url: https://www.youtube.com/feeds/videos.xml?channel_id=UC6t1O76G0jYXOAoYCm153dA
+
+  - name: Y Combinator (YouTube)
+    category: 유튜브
+    type: rss
+    url: https://www.youtube.com/feeds/videos.xml?channel_id=UCcefcZRL2oaA_uBNeo5UOWg
+
+  - name: Greg Isenberg (YouTube)
+    category: 유튜브
+    type: rss
+    url: https://www.youtube.com/feeds/videos.xml?channel_id=UCPjNBjflYl0-HQtUvOx0Ibw
+
+  - name: a16z (YouTube)
+    category: 유튜브
+    type: rss
+    url: https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA
+
+  - name: Sequoia Capital (YouTube)
+    category: 유튜브
+    type: rss
+    url: https://www.youtube.com/feeds/videos.xml?channel_id=UCWrF0oN6unbXrWsTN7RctTw
+
+  - name: Starter Story (YouTube)
+    category: 유튜브
+    type: rss
+    url: https://www.youtube.com/feeds/videos.xml?channel_id=UChhw6DlKKTQ9mYSpTfXUYqA
+
+  # ---------- 뉴스레터/블로그 (조쉬 소스 보완) ----------
+  - name: Lenny's Newsletter
+    category: 뉴스레터
+    type: rss
+    url: https://www.lennysnewsletter.com/feed
+
+  - name: Steve Yegge (Medium)
+    category: 블로그
+    type: rss
+    url: https://steve-yegge.medium.com/feed
+

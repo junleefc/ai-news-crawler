@@ -65,6 +65,8 @@ def crawl(feeds, lookback_hours=26, max_per_feed=15):
 
             title = _clean(entry.get("title", ""), 300)
             link = entry.get("link", "")
+            if "youtube.com/shorts/" in link:  # 쇼츠는 심층 콘텐츠가 아니라 제외
+                continue
             if not title or not link:
                 continue
 
