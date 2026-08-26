@@ -28,6 +28,9 @@ slack_items_per_message: 6   # 슬랙은 여러 메시지로 분할 (긴 메시�
 min_body_chars: 700
 title_dup_threshold: 0.6  # 제목 토큰 이만큼 겹치면 중복으로 간주
 max_per_source: 4         # 한 실행에서 같은 출처 최대 건수 (편중 방지)
+source_caps:              # 특정 출처만 더 낮게 (아래가 우선)
+  Hacker News (AI): 2     # 한 곳 쏠림이 심해 축소 (최근 7일 143건 중 53건이었음)
+  arXiv cs.AI: 2          # 논문은 소수만
 firecrawl_daily_cap: 20   # 1회 실행당 firecrawl 최대 호출 (무료 월1000크레딧 보호: 20×30=600)
 stale_lookback_days: 7    # 최근 N일 발송분과 비교해 '새 정보 없는 재탕' 제외
 

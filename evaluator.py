@@ -196,14 +196,17 @@ def filter_stale(items, recent, api_key, model):
     return [it for i, it in enumerate(items) if i not in drop]
 
 
-def cap_per_source(items, max_per_source):
-    """한 출처가 목록을 독식하지 않도록 상한을 건다 (fit 높은 순으로 남김)."""
-    if not max_per_source:
+def cap_per_source(items, max_per_source, source_caps=None):
+    """한 출처가 목록을 독식하지 않도록 상한을 건다 (fit 높은 순으로 남김).
+    source_caps에 출처명이 있으면 그 값이 우선한다."""
+    if not max_per_source and not source_caps:
         return items
+    source_caps = source_caps or {}
     cnt, kept, dropped = {}, [], 0
     for it in items:
         src = it.get("source", "")
-        if cnt.get(src, 0) >= max_per_source:
+        limit = source_caps.get(src, max_per_source)
+        if limit and cnt.get(src, 0) >= limit:
             dropped += 1
             continue
         cnt[src] = cnt.get(src, 0) + 1

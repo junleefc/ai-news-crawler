@@ -111,12 +111,31 @@ def verify_one(item, model, client, min_kept=2):
     return item
 
 
+# 본문을 못 읽은 페이지를 모델이 "내용 없음"이라고 요약해버리는 경우가 있다.
+# 그대로 발송되면 빈 껍데기 뉴스가 되므로 여기서 걸러낸다.
+_EMPTY_SIGNS = (
+    "본문 내용 없음", "본문이 없", "내용 없음", "내비게이션만", "원문에 기사",
+    "제공된 원문에", "실제 내용 없", "실제 기사 내용", "확인할 수 없",
+    "접근할 수 없", "로그인이 필요", "페이지를 찾을 수 없", "내용을 확인",
+)
+
+
+def looks_empty(item):
+    """제목/한줄평이 '본문 없음'을 말하고 있으면 껍데기로 판단."""
+    text = (item.get("ko_headline", "") or "") + " " + (item.get("why", "") or "")
+    return any(sign in text for sign in _EMPTY_SIGNS)
+
+
 def summarize(items, api_key, model, min_body_chars=700, verify_model=None):
     client = Anthropic(api_key=api_key)
     out = []
     for it in items:
         summarize_one(it, api_key, model, min_body_chars=min_body_chars, client=client)
         if not it.get("_thin"):
-            verify_one(it, verify_model or model, client)
+            if looks_empty(it):
+                it["_thin"] = True
+                print(f"   빈 껍데기 제외: {it.get('ko_headline','')[:42]}")
+            else:
+                verify_one(it, verify_model or model, client)
         out.append(it)
     return out

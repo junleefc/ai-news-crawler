@@ -93,7 +93,8 @@ def main():
     # (b) 남은 것 중 '같은 사건 + 새 정보 없음'을 LLM으로 판별
     if recent:
         pool = evaluator.filter_stale(pool, recent, key, cfg.get("filter_model"))
-    pool = evaluator.cap_per_source(pool, cfg.get("max_per_source"))
+    pool = evaluator.cap_per_source(pool, cfg.get("max_per_source"),
+                                   cfg.get("source_caps"))
     selected = pool[:want]
     print(f"   최종 선별 {len(selected)}건")
 
