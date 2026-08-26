@@ -5,6 +5,7 @@
 - 발송 후 feedback_wait_days 지나도 반응 없으면 '무반응'으로 확정 (약한 부정 신호).
 """
 import time
+import re
 from collections import Counter
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -81,7 +82,11 @@ def build_profile(ws, sheets_store, interests, uninterests, max_terms=15, manual
             if r["source"]:
                 source[r["source"]] += w
         liked = [t for t, s in topic.most_common() if s > 0][:max_terms]
-        disliked = [t for t, s in sorted(topic.items(), key=lambda x: x[1]) if s < 0][:max_terms]
+        # 사용자가 직접 선언한 관심사와 겹치는 말은 '싫어함'으로 넘기지 않는다.
+        # (개별 기사가 별로였을 뿐인데 관심 분야 전체가 배제되는 것을 막음)
+        interest_text = " ".join(interests).lower()
+        disliked = [t for t, s in sorted(topic.items(), key=lambda x: x[1])
+                    if s < 0 and not _overlaps(t, interest_text)][:max_terms]
         if liked:
             lines.append("[좋아한 주제] " + ", ".join(liked))
         if disliked:
@@ -92,6 +97,17 @@ def build_profile(ws, sheets_store, interests, uninterests, max_terms=15, manual
         n_real = sum(1 for r in rated if r["rating"] != "무반응")
         lines.append(f"(평가 데이터: 명시 평가 {n_real}건, 무반응 포함 {len(rated)}건 기반)")
     return "\n".join(lines)
+
+
+def _overlaps(term, interest_text):
+    """키워드가 선언된 관심사 문구와 실질적으로 겹치는지."""
+    t = term.strip().lower()
+    if len(t) < 2:
+        return False
+    if t in interest_text:
+        return True
+    words = [w for w in re.split(r"[^0-9a-z가-힣]+", t) if len(w) > 1]
+    return bool(words) and all(w in interest_text for w in words)
 
 
 def rated_clean(rows):

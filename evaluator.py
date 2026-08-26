@@ -22,10 +22,14 @@ SYSTEM = (
 
 
 def _extract_json(text):
+    """모델 응답에서 JSON 배열만 안전하게 뽑는다.
+    배열 앞뒤에 설명이 붙어 있어도(=Extra data 오류 원인) 견디도록 처리."""
     text = re.sub(r"^```(?:json)?", "", text.strip()).strip()
     text = re.sub(r"```$", "", text).strip()
     s, e = text.find("["), text.rfind("]")
-    return json.loads(text[s : e + 1] if s != -1 else text)
+    if s != -1 and e > s:
+        return json.loads(text[s : e + 1])
+    return []   # 배열이 없으면 '해당 없음'으로 간주 (실패로 전체를 막지 않음)
 
 
 def evaluate(items, api_key, model, profile="", batch_size=25):

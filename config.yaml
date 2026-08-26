@@ -62,6 +62,6 @@ rating_weights:
   3-보통: 0
   2-별로: -2
   1-최악: -4
-  무반응: -0.5
+  무반응: 0      # 안 누른 것을 싫음으로 보면 관심사가 통째로 뒤집힘(응답률 21%)
 feedback_wait_days: 2     # 발송 후 이 일수 지나야 '무반응' 확정
 slack_channel_id: C0BFS998RTR   # #ai_insight
