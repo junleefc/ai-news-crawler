@@ -1,12 +1,14 @@
 name: YouTube Subtitle Cloud Test
 
+# 클라우드에서 유튜브 자막 확보(yt-dlp → firecrawl 폴백)가 되는지만 검사.
+# 슬랙/시트는 일절 건드리지 않는다. 수동 실행 전용.
 on:
   workflow_dispatch: {}
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -15,35 +17,22 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Try every player client
+      - name: Fetch transcripts via full fallback chain
+        env:
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
         run: |
           python - <<'PYEOF'
-          import subprocess, tempfile, glob, os
-          URL = "https://www.youtube.com/watch?v=fsTtKywmWlU"
-          base = ["yt-dlp", "--skip-download", "--write-subs", "--write-auto-subs",
-                  "--sub-langs", "en.*", "--sub-format", "vtt"]
-          variants = {
-              "tv": ["--extractor-args", "youtube:player_client=tv"],
-              "tv_embedded": ["--extractor-args", "youtube:player_client=tv_embedded"],
-              "ios": ["--extractor-args", "youtube:player_client=ios"],
-              "mweb": ["--extractor-args", "youtube:player_client=mweb"],
-              "web_embedded": ["--extractor-args", "youtube:player_client=web_embedded"],
-              "web_safari": ["--extractor-args", "youtube:player_client=web_safari"],
-              "mweb+chrome위장": ["--extractor-args", "youtube:player_client=mweb",
-                                   "--impersonate", "chrome"],
-              "tv+chrome위장": ["--extractor-args", "youtube:player_client=tv",
-                                 "--impersonate", "chrome"],
+          import fetcher
+          videos = {
+              "a16z (Garry Tan)": "https://www.youtube.com/watch?v=fsTtKywmWlU",
+              "어제 실패 영상": "https://www.youtube.com/watch?v=EoNH3Tn8wYE",
           }
-          winners = []
-          for name, extra in variants.items():
-              with tempfile.TemporaryDirectory() as td:
-                  r = subprocess.run(base + extra + ["-o", f"{td}/s", URL],
-                                     capture_output=True, timeout=120, text=True)
-                  vtts = glob.glob(f"{td}/s*.vtt")
-                  size = os.path.getsize(vtts[0]) if vtts else 0
-                  tail = (r.stderr or "").strip().splitlines()[-1][:90] if r.stderr else ""
-                  print(f"RESULT {name}: {'✅ ' + str(size) + 'B' if size > 1000 else '❌ ' + tail}")
-                  if size > 1000:
-                      winners.append(name)
-          print(f"\n=== 성공한 클라이언트: {winners or '없음'} ===")
+          ok = 0
+          for name, url in videos.items():
+              t = fetcher.fetch_fulltext(url)
+              print(f"RESULT {name}: {len(t)}자 | {t[:80]!r}")
+              ok += len(t) >= 700
+          print(f"\n=== 최종: {ok}/{len(videos)} 성공 (firecrawl 사용 {fetcher.firecrawl_used()}건) ===")
+          if ok == 0:
+              raise SystemExit("전부 실패")
           PYEOF

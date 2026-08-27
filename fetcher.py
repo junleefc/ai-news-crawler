@@ -56,6 +56,29 @@ def _firecrawl(url, key, attempts=3):
     return ""
 
 
+def _firecrawl_youtube_transcript(url):
+    """firecrawl로 유튜브 페이지를 긁으면 '## Transcript' 섹션에 전체 자막이 온다.
+    설명·리소스 링크 등 자막이 아닌 부분은 잘라낸다."""
+    key = os.environ.get("FIRECRAWL_API_KEY")
+    if not key:
+        return ""
+    global _fc_used
+    _fc_used += 1
+    md = _firecrawl(url, key, attempts=2)
+    if not md:
+        return ""
+    i = md.find("## Transcript")
+    if i == -1:
+        return ""
+    text = md[i + len("## Transcript"):]
+    # 다음 헤더가 나오면 거기까지만 (자막 뒤에 다른 섹션이 붙는 경우)
+    j = text.find("\n## ")
+    if j != -1:
+        text = text[:j]
+    text = re.sub(r"\[music\]|\[Music\]|>>", " ", text)
+    return " ".join(text.split())
+
+
 def _youtube_transcript(url, max_chars):
     """유튜브 영상은 본문 대신 자막(오디오 내용)을 가져온다.
     yt-dlp로 영어/한글 자막(자동 생성 포함)을 받아 텍스트로 변환."""
@@ -85,6 +108,12 @@ def _youtube_transcript(url, max_chars):
                 break
             time.sleep(2)
         if not vtts:
+            # 클라우드 IP는 유튜브가 봇으로 보고 전부 차단함(전 클라이언트 확인).
+            # firecrawl은 자체 프록시로 접근하므로 유일하게 뚫리는 경로.
+            fc = _firecrawl_youtube_transcript(url)
+            if fc:
+                print(f"[info] 자막을 firecrawl로 확보: {url[:60]}")
+                return fc[:max_chars]
             print(f"[info] 자막 없음: {url[:60]}")
             return ""
         raw = open(vtts[0], encoding="utf-8", errors="ignore").read()
