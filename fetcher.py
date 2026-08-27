@@ -75,7 +75,10 @@ def _firecrawl_youtube_transcript(url):
     j = text.find("\n## ")
     if j != -1:
         text = text[:j]
-    text = re.sub(r"\[music\]|\[Music\]|>>", " ", text)
+    # 전체 페이지 모드라 플레이어 UI·썸네일·링크 잡동사니가 섞여 온다 → 대사만 남김
+    text = re.sub(r"!?\[[^\]]*\]\([^)]*\)", " ", text)   # 이미지·링크 마크다운
+    text = re.sub(r"https?://\S+", " ", text)              # 남은 URL
+    text = re.sub(r"\[music\]|\[Music\]|\[Applause\]|>>|NaN / NaN", " ", text)
     return " ".join(text.split())
 
 
