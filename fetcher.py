@@ -56,13 +56,16 @@ def _firecrawl(url, key, attempts=3, main_only=True):
     return ""
 
 
-def _firecrawl_youtube_transcript(url):
+def _firecrawl_youtube_transcript(url, cap=20):
     """firecrawl로 유튜브 페이지를 긁으면 '## Transcript' 섹션에 전체 자막이 온다.
     설명·리소스 링크 등 자막이 아닌 부분은 잘라낸다."""
     key = os.environ.get("FIRECRAWL_API_KEY")
     if not key:
         return ""
     global _fc_used
+    if _fc_used >= cap:
+        print(f"[info] firecrawl 상한({cap}) 도달 → 유튜브 자막 건너뜀: {url[:60]}")
+        return ""
     _fc_used += 1
     md = _firecrawl(url, key, attempts=2, main_only=False)  # True면 Transcript가 잘림
     if not md:
@@ -82,7 +85,7 @@ def _firecrawl_youtube_transcript(url):
     return " ".join(text.split())
 
 
-def _youtube_transcript(url, max_chars):
+def _youtube_transcript(url, max_chars, firecrawl_cap=20):
     """유튜브 영상은 본문 대신 자막(오디오 내용)을 가져온다.
     yt-dlp로 영어/한글 자막(자동 생성 포함)을 받아 텍스트로 변환."""
     base = ["yt-dlp", "--skip-download", "--write-subs", "--write-auto-subs",
@@ -113,7 +116,7 @@ def _youtube_transcript(url, max_chars):
         if not vtts:
             # 클라우드 IP는 유튜브가 봇으로 보고 전부 차단함(전 클라이언트 확인).
             # firecrawl은 자체 프록시로 접근하므로 유일하게 뚫리는 경로.
-            fc = _firecrawl_youtube_transcript(url)
+            fc = _firecrawl_youtube_transcript(url, cap=firecrawl_cap)
             if fc:
                 print(f"[info] 자막을 firecrawl로 확보: {url[:60]}")
                 return fc[:max_chars]
@@ -137,7 +140,7 @@ def fetch_fulltext(url, max_chars=8000, firecrawl_cap=20):
     유튜브 → 자막 / 일반 웹 → 1) trafilatura(무료) → 2) firecrawl 폴백(상한 내)."""
     global _fc_used
     if "youtube.com/watch" in url or "youtu.be/" in url or "youtube.com/shorts/" in url:
-        return _youtube_transcript(url, max_chars)
+        return _youtube_transcript(url, max_chars, firecrawl_cap)
     text = _trafilatura(url)
     if len(text) < 400:  # 추출 실패/부실 → firecrawl 폴백
         key = os.environ.get("FIRECRAWL_API_KEY")
