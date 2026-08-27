@@ -31,10 +31,19 @@ VERIFY_SYSTEM = (
 
 
 def _extract_json(text):
+    """첫 번째 JSON 객체만 파싱. 앞뒤에 설명이 붙거나 텍스트 블록이 비어도 안전."""
+    if not text:
+        raise ValueError("모델 응답에 텍스트 없음")
     text = re.sub(r"^```(?:json)?", "", text.strip()).strip()
     text = re.sub(r"```$", "", text).strip()
-    s, e = text.find("{"), text.rfind("}")
-    return json.loads(text[s : e + 1] if s != -1 else text)
+    dec = json.JSONDecoder()
+    for m in re.finditer(r"\{", text):
+        try:
+            val, _ = dec.raw_decode(text[m.start():])
+            return val
+        except json.JSONDecodeError:
+            continue
+    raise ValueError("응답에서 JSON을 찾지 못함")
 
 
 def summarize_one(item, api_key, model, min_body_chars=700, client=None):
@@ -56,7 +65,7 @@ def summarize_one(item, api_key, model, min_body_chars=700, client=None):
             model=model, max_tokens=8000, system=SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
-        r = _extract_json(next(b.text for b in resp.content if hasattr(b,'text')))
+        r = _extract_json(next(b.text for b in resp.content if getattr(b, "text", None)))
         item["ko_headline"] = r.get("ko_headline") or item["title"]
         item["why"] = r.get("why", "")
         item["summary_bullets"] = r.get("summary") or []
@@ -86,7 +95,7 @@ def verify_one(item, model, client, min_kept=2):
             model=model, max_tokens=6000, system=VERIFY_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = next(b.text for b in resp.content if hasattr(b, "text"))
+        raw = next(b.text for b in resp.content if getattr(b, "text", None))
         r = _extract_json(raw)
     except Exception as e:  # noqa: BLE001
         print(f"[warn] 검증 실패(원본 유지) {item.get('url','')}: {e}")

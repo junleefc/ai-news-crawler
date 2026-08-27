@@ -58,7 +58,8 @@ def main():
         print(f"   직접 지시 {len(manual)}건 반영")
     profile = feedback.build_profile(ws, sheets_store,
                                      cfg.get("interests", []), cfg.get("uninterests", []),
-                                     manual=manual, weights=cfg.get("rating_weights"))
+                                     manual=manual, weights=cfg.get("rating_weights"),
+                                     api_key=key, model=cfg.get("filter_model"))
     # 취향 프로필을 시트 'profile' 탭에 기록 (사용자가 눈으로 확인/수정)
     sheets_store.write_profile(sheet_id, profile, feedback.build_stats(ws, sheets_store))
 

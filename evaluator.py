@@ -21,15 +21,21 @@ SYSTEM = (
 )
 
 
-def _extract_json(text):
-    """모델 응답에서 JSON 배열만 안전하게 뽑는다.
-    배열 앞뒤에 설명이 붙어 있어도(=Extra data 오류 원인) 견디도록 처리."""
+def _extract_json(text, default=None):
+    """모델 응답에서 첫 번째 JSON 값만 안전하게 뽑는다.
+    JSON 앞뒤에 설명 문장이 붙어도(Extra data 오류의 원인) 무시하고 파싱한다."""
     text = re.sub(r"^```(?:json)?", "", text.strip()).strip()
     text = re.sub(r"```$", "", text).strip()
-    s, e = text.find("["), text.rfind("]")
-    if s != -1 and e > s:
-        return json.loads(text[s : e + 1])
-    return []   # 배열이 없으면 '해당 없음'으로 간주 (실패로 전체를 막지 않음)
+    dec = json.JSONDecoder()
+    for m in re.finditer(r"[\[{]", text):
+        try:
+            val, _ = dec.raw_decode(text[m.start():])
+            return val
+        except json.JSONDecodeError:
+            continue
+    if default is not None:
+        return default
+    raise ValueError("응답에서 JSON을 찾지 못함")
 
 
 def evaluate(items, api_key, model, profile="", batch_size=25):
@@ -89,26 +95,32 @@ def dedupe_stories(items, api_key, model):
         for i, it in enumerate(items)
     )
     prompt = (
-        "다음 기사들을 같은 사건끼리 묶어라.\n" + lines +
-        '\n\n같은 사건인 그룹만 JSON 배열로 출력(단독 기사는 넣지 마라): '
-        '[{"group":[0,3,7]},{"group":[2,5]}]  없으면 []'
+        "다음 기사들을 분석하라.\n" + lines +
+        "\n\n두 가지를 JSON 객체 하나로 출력하라:\n"
+        '1) "same_event": 같은 사건을 다룬 그룹만 (단독 기사는 넣지 마라)\n'
+        '2) "topics": 사건은 다르지만 같은 주제·소재로 묶이는 그룹 (예: AI 보안 사고 3건, 감원 소식 2건)\n'
+        '형식: {"same_event":[{"group":[0,3]}],"topics":[{"topic":"AI 보안 사고","items":[0,3,7,9]}]}\n'
+        "해당 없으면 빈 배열."
     )
     try:
         resp = client.messages.create(
             model=model, max_tokens=1500, system=DEDUP_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
-        groups = _extract_json(next(b.text for b in resp.content if hasattr(b,'text')))
+        r = _extract_json(next(b.text for b in resp.content if getattr(b, "text", None)),
+                          default={})
+        groups = r.get("same_event", []) if isinstance(r, dict) else r
+        topics = r.get("topics", []) if isinstance(r, dict) else []
     except Exception as e:  # noqa: BLE001
         print(f"[warn] 중복 사건 묶기 실패: {e}")
         return items
 
+    # (a) 같은 사건: 대표 1건만 남기고 제거
     drop = set()
     for g in groups:
         idxs = [i for i in g.get("group", []) if isinstance(i, int) and 0 <= i < len(items)]
         if len(idxs) < 2:
             continue
-        # 대표: fit → insight 높은 것
         best = max(idxs, key=lambda i: (items[i].get("fit", 3), items[i].get("insight", 0)))
         for i in idxs:
             if i != best:
@@ -116,7 +128,24 @@ def dedupe_stories(items, api_key, model):
         print(f"   중복 사건 {len(idxs)}건 → 1건: {items[best]['title'][:45]}")
     if drop:
         print(f"   중복 제거 {len(drop)}건")
-    return [it for i, it in enumerate(items) if i not in drop]
+
+    # (b) 같은 주제 몰림 방지: 주제당 상위 2건만 앞에 두고 나머지는 목록 끝으로.
+    #     (자리가 남으면 살아나고, 최종 상한에서 잘리면 자연히 빠짐)
+    deferred = set()
+    for t in topics:
+        idxs = [i for i in t.get("items", []) if isinstance(i, int) and 0 <= i < len(items)
+                and i not in drop]
+        if len(idxs) <= 2:
+            continue
+        ranked = sorted(idxs, key=lambda i: (items[i].get("fit", 3),
+                                             items[i].get("insight", 0)), reverse=True)
+        for i in ranked[2:]:
+            deferred.add(i)
+        print(f"   주제 몰림 완화 '{t.get('topic','')}': {len(idxs)}건 → 우선 2건")
+
+    front = [it for i, it in enumerate(items) if i not in drop and i not in deferred]
+    back = [it for i, it in enumerate(items) if i not in drop and i in deferred]
+    return front + back
 
 
 _STOP = {"ai", "the", "a", "an", "to", "of", "in", "on", "and", "for", "is", "with",

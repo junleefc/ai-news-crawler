@@ -63,8 +63,14 @@ def collect_ratings(token, channel, ws, sheets_store, rating_emojis, wait_days=2
 DEFAULT_WEIGHTS = {"5-최고": 3, "4-좋음": 1, "3-보통": 0, "2-별로": -2, "1-최악": -4, "무반응": 0}
 
 
-def build_profile(ws, sheets_store, interests, uninterests, max_terms=15, manual=None, weights=None):
-    """평가 데이터 + 기본 관심사 + 사용자 직접 지시로 취향 프로필 텍스트 생성."""
+def build_profile(ws, sheets_store, interests, uninterests, max_terms=15, manual=None,
+                  weights=None, api_key=None, model=None):
+    """평가 데이터 + 기본 관심사 + 사용자 직접 지시로 취향 프로필 텍스트 생성.
+
+    핵심 원칙: 4·5점은 그 '사건'이 아니라 그런 '카테고리'의 콘텐츠가 좋다는 뜻이다.
+    그래서 개별 키워드(예: 'OpenAI 해킹')를 그대로 쓰지 않고, AI로 한 단계
+    추상화한 카테고리(예: 'AI 보안 사고의 심층 분석')로 바꿔 학습한다.
+    이렇게 해야 같은 사건 기사가 반복 선정되는 것을 막을 수 있다."""
     lines = ["[사용자 관심사]"]
     lines += [f"- 관심: {i}" for i in interests]
     lines += [f"- 비관심: {u}" for u in uninterests]
@@ -91,16 +97,61 @@ def build_profile(ws, sheets_store, interests, uninterests, max_terms=15, manual
         interest_text = " ".join(interests).lower()
         disliked = [t for t, s in sorted(topic.items(), key=lambda x: x[1])
                     if s < 0 and not _overlaps(t, interest_text)][:max_terms]
-        if liked:
-            lines.append("[좋아한 주제] " + ", ".join(liked))
-        if disliked:
-            lines.append("[싫어한 주제] " + ", ".join(disliked))
+        # 키워드 → 카테고리 추상화 (실패 시 키워드 그대로 폴백)
+        cats = _generalize_categories(rated, liked, disliked, api_key, model)
+        if cats:
+            if cats.get("liked"):
+                lines.append("[선호 카테고리 — 이런 '종류'의 콘텐츠] " + ", ".join(cats["liked"]))
+            if cats.get("disliked"):
+                lines.append("[비선호 카테고리] " + ", ".join(cats["disliked"]))
+            lines.append("[중요] 위 선호는 카테고리 수준의 신호다. 특정 회사나 특정 사건 자체를"
+                         " 좋아한다는 뜻이 아니다. 이미 여러 번 다뤄진 사건·소재의 반복 기사는"
+                         " 선호 카테고리에 속하더라도 새 관점이나 새 정보가 없으면 fit을 낮게 줘라.")
+        else:
+            if liked:
+                lines.append("[좋아한 주제] " + ", ".join(liked))
+            if disliked:
+                lines.append("[싫어한 주제] " + ", ".join(disliked))
         src_like = [s for s, v in source.most_common() if v > 0][:5]
         if src_like:
             lines.append("[선호 출처(약한 신호)] " + ", ".join(src_like))
         n_real = sum(1 for r in rated if r["rating"] != "무반응")
         lines.append(f"(취향 학습에 쓰인 명시 평가 {n_real}건 기준. 무반응은 의견 없음으로 보고 제외)")
     return "\n".join(lines)
+
+
+def _generalize_categories(rated, liked_kw, disliked_kw, api_key, model):
+    """좋아한/싫어한 기사 제목·키워드를 상위 카테고리로 추상화한다.
+    '허깅페이스 해킹' → 'AI 보안 사고 심층 분석' 같은 식."""
+    if not api_key or not model:
+        return None
+    liked_titles = [r["title"] for r in rated if r["rating"] in ("5-최고", "4-좋음")][-30:]
+    bad_titles = [r["title"] for r in rated if r["rating"] in ("1-최악", "2-별로")][-30:]
+    if not liked_titles:
+        return None
+    prompt = (
+        "사용자가 뉴스레터에서 좋다고 평가한 기사와 별로라고 평가한 기사 목록이다.\n\n"
+        "[좋아한 기사]\n" + "\n".join(f"- {t}" for t in liked_titles) +
+        "\n(관련 키워드: " + ", ".join(liked_kw[:15]) + ")\n\n"
+        "[별로였던 기사]\n" + "\n".join(f"- {t}" for t in bad_titles) +
+        "\n(관련 키워드: " + ", ".join(disliked_kw[:15]) + ")\n\n"
+        "개별 사건·회사 이름이 아니라, 사용자가 좋아하는 콘텐츠의 '종류'를 추상화하라.\n"
+        "예: '허깅페이스 해킹 사건'(X) → 'AI 보안 사고의 실제 사례 심층 분석'(O)\n"
+        '선호 5~8개, 비선호 3~6개를 JSON으로: {"liked":["..."],"disliked":["..."]}'
+    )
+    try:
+        from anthropic import Anthropic
+        from evaluator import _extract_json
+        resp = Anthropic(api_key=api_key).messages.create(
+            model=model, max_tokens=1000,
+            messages=[{"role": "user", "content": prompt}])
+        r = _extract_json(next(b.text for b in resp.content if getattr(b, "text", None)),
+                          default={})
+        if isinstance(r, dict) and r.get("liked"):
+            return {"liked": r.get("liked", [])[:8], "disliked": r.get("disliked", [])[:6]}
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] 카테고리 추상화 실패(키워드로 폴백): {e}")
+    return None
 
 
 def _overlaps(term, interest_text):

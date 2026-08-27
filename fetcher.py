@@ -59,18 +59,31 @@ def _firecrawl(url, key, attempts=3):
 def _youtube_transcript(url, max_chars):
     """유튜브 영상은 본문 대신 자막(오디오 내용)을 가져온다.
     yt-dlp로 영어/한글 자막(자동 생성 포함)을 받아 텍스트로 변환."""
+    base = ["yt-dlp", "--skip-download", "--write-subs", "--write-auto-subs",
+            "--sub-langs", "en.*,ko.*", "--sub-format", "vtt",
+            "--sleep-subtitles", "2"]  # 언어별 요청 사이 대기 (429 방지)
+    # 클라우드(데이터센터 IP)에서 유튜브가 봇으로 보고 막는 경우가 있어
+    # 브라우저 위장 → 안드로이드 클라이언트 순으로 재시도한다.
+    attempts = [
+        base,
+        base + ["--impersonate", "chrome"],
+        base + ["--extractor-args", "youtube:player_client=android"],
+    ]
     with tempfile.TemporaryDirectory() as td:
-        try:
-            subprocess.run(
-                ["yt-dlp", "--skip-download", "--write-subs", "--write-auto-subs",
-                 "--sub-langs", "en.*,ko.*", "--sub-format", "vtt",
-                 "--sleep-subtitles", "2",  # 언어별 요청 사이 대기 (429 방지)
-                 "-o", f"{td}/sub", url],
-                capture_output=True, timeout=120)
-        except Exception as e:  # noqa: BLE001
-            print(f"[warn] 자막 다운로드 실패: {e} ({url[:60]})")
-            return ""
-        vtts = sorted(glob.glob(f"{td}/sub*.vtt"))
+        vtts = []
+        for i, cmd in enumerate(attempts):
+            try:
+                subprocess.run(cmd + ["-o", f"{td}/sub{i}", url],
+                               capture_output=True, timeout=120)
+            except Exception as e:  # noqa: BLE001
+                print(f"[warn] 자막 다운로드 실패: {e} ({url[:60]})")
+                continue
+            vtts = sorted(glob.glob(f"{td}/sub{i}*.vtt"))
+            if vtts:
+                if i > 0:
+                    print(f"[info] 자막 우회 성공(시도 {i + 1}): {url[:60]}")
+                break
+            time.sleep(2)
         if not vtts:
             print(f"[info] 자막 없음: {url[:60]}")
             return ""
