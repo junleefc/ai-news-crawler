@@ -21,12 +21,40 @@ SYSTEM = (
 )
 
 
-def _extract_json(text, default=None):
-    """모델 응답에서 첫 번째 JSON 값만 안전하게 뽑는다.
-    JSON 앞뒤에 설명 문장이 붙어도(Extra data 오류의 원인) 무시하고 파싱한다."""
+def _extract_json(text, default=None, expect=None):
+    """모델 응답에서 JSON만 안전하게 뽑는다.
+    - 앞뒤에 설명 문장이 붙어도(Extra data 오류의 원인) 무시하고 파싱.
+    - expect="list": 배열을 찾되, 모델이 배열 없이 객체를 줄줄이 출력한
+      경우(JSON Lines)에도 객체들을 모아 배열로 만들어 돌려준다.
+      (단일 객체를 배열로 오인해 문자열 키를 순회하던 버그 방지)"""
     text = re.sub(r"^```(?:json)?", "", text.strip()).strip()
     text = re.sub(r"```$", "", text).strip()
     dec = json.JSONDecoder()
+    if expect == "list":
+        for m in re.finditer(r"\[", text):
+            try:
+                val, _ = dec.raw_decode(text[m.start():])
+                if isinstance(val, list):
+                    return val
+            except json.JSONDecodeError:
+                continue
+        objs, pos = [], 0
+        while pos < len(text):
+            m = re.search(r"\{", text[pos:])
+            if not m:
+                break
+            try:
+                val, end = dec.raw_decode(text[pos + m.start():])
+                if isinstance(val, dict):
+                    objs.append(val)
+                pos = pos + m.start() + end
+            except json.JSONDecodeError:
+                pos = pos + m.start() + 1
+        if objs:
+            return objs
+        if default is not None:
+            return default
+        raise ValueError("응답에서 JSON 배열을 찾지 못함")
     for m in re.finditer(r"[\[{]", text):
         try:
             val, _ = dec.raw_decode(text[m.start():])
@@ -64,8 +92,11 @@ def evaluate(items, api_key, model, profile="", batch_size=25):
                 model=model, max_tokens=2000, system=SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
             )
-            for r in _extract_json(next(b.text for b in resp.content if hasattr(b,'text'))):
-                results[r["index"]] = r
+            parsed = _extract_json(next(t.text for t in resp.content if getattr(t, "text", None)),
+                                   default=[], expect="list")
+            for r in parsed:
+                if isinstance(r, dict) and isinstance(r.get("index"), int):
+                    results[r["index"]] = r
         except Exception as e:  # noqa: BLE001
             print(f"[warn] 평가 실패(배치 {b}): {e}")
 
@@ -213,13 +244,16 @@ def filter_stale(items, recent, api_key, model):
             model=model, max_tokens=1200, system=STALE_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
-        stale = _extract_json(next(b.text for b in resp.content if hasattr(b,'text')))
+        stale = _extract_json(next(t.text for t in resp.content if getattr(t, "text", None)),
+                              default=[], expect="list")
     except Exception as e:  # noqa: BLE001
         print(f"[warn] 재탕 판별 실패: {e}")
         return items
 
     drop = set()
     for s in stale:
+        if not isinstance(s, dict):
+            continue
         i = s.get("index")
         if isinstance(i, int) and 0 <= i < len(items):
             drop.add(i)
