@@ -1,38 +1,42 @@
 name: YouTube Subtitle Cloud Test
 
-# 클라우드에서 유튜브 자막 확보(yt-dlp → firecrawl 폴백)가 되는지만 검사.
-# 슬랙/시트는 일절 건드리지 않는다. 수동 실행 전용.
 on:
   workflow_dispatch: {}
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Fetch transcripts via full fallback chain
+      - run: pip install requests
+      - name: Compare firecrawl v1 vs v2 on YouTube
         env:
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
         run: |
           python - <<'PYEOF'
-          import fetcher
-          videos = {
-              "a16z (Garry Tan)": "https://www.youtube.com/watch?v=fsTtKywmWlU",
-              "어제 실패 영상": "https://www.youtube.com/watch?v=EoNH3Tn8wYE",
+          import os, requests
+          key = os.environ["FIRECRAWL_API_KEY"]
+          URL = "https://www.youtube.com/watch?v=fsTtKywmWlU"
+          cases = {
+              "v1 main": ("https://api.firecrawl.dev/v1/scrape", {"onlyMainContent": True}),
+              "v1 full": ("https://api.firecrawl.dev/v1/scrape", {"onlyMainContent": False}),
+              "v2 main": ("https://api.firecrawl.dev/v2/scrape", {"onlyMainContent": True}),
+              "v2 full": ("https://api.firecrawl.dev/v2/scrape", {"onlyMainContent": False}),
           }
-          ok = 0
-          for name, url in videos.items():
-              t = fetcher.fetch_fulltext(url)
-              print(f"RESULT {name}: {len(t)}자 | {t[:80]!r}")
-              ok += len(t) >= 700
-          print(f"\n=== 최종: {ok}/{len(videos)} 성공 (firecrawl 사용 {fetcher.firecrawl_used()}건) ===")
-          if ok == 0:
-              raise SystemExit("전부 실패")
+          for name, (api, opts) in cases.items():
+              try:
+                  r = requests.post(api, timeout=90,
+                      headers={"Authorization": f"Bearer {key}"},
+                      json={"url": URL, "formats": ["markdown"], **opts})
+                  md = ((r.json().get("data") or {}).get("markdown") or "") if r.ok else ""
+                  has = "## Transcript" in md
+                  print(f"RESULT {name}: HTTP {r.status_code} | {len(md)}자 | Transcript {'✅' if has else '❌'}")
+                  if not r.ok:
+                      print("   응답:", r.text[:150])
+              except Exception as e:
+                  print(f"RESULT {name}: 예외 {e}")
           PYEOF
