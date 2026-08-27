@@ -1,42 +1,37 @@
 name: YouTube Subtitle Cloud Test
 
+# 내일 아침과 동일한 fetch_fulltext 체인(yt-dlp → firecrawl 폴백) 검증. 발송 없음.
 on:
   workflow_dispatch: {}
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install requests
-      - name: Compare firecrawl v1 vs v2 on YouTube
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: fetch_fulltext full chain
         env:
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
         run: |
           python - <<'PYEOF'
-          import os, requests
-          key = os.environ["FIRECRAWL_API_KEY"]
-          URL = "https://www.youtube.com/watch?v=fsTtKywmWlU"
-          cases = {
-              "v1 main": ("https://api.firecrawl.dev/v1/scrape", {"onlyMainContent": True}),
-              "v1 full": ("https://api.firecrawl.dev/v1/scrape", {"onlyMainContent": False}),
-              "v2 main": ("https://api.firecrawl.dev/v2/scrape", {"onlyMainContent": True}),
-              "v2 full": ("https://api.firecrawl.dev/v2/scrape", {"onlyMainContent": False}),
+          import fetcher
+          videos = {
+              "a16z (Garry Tan)": "https://www.youtube.com/watch?v=fsTtKywmWlU",
+              "어제 실패 영상": "https://www.youtube.com/watch?v=EoNH3Tn8wYE",
           }
-          for name, (api, opts) in cases.items():
-              try:
-                  r = requests.post(api, timeout=90,
-                      headers={"Authorization": f"Bearer {key}"},
-                      json={"url": URL, "formats": ["markdown"], **opts})
-                  md = ((r.json().get("data") or {}).get("markdown") or "") if r.ok else ""
-                  has = "## Transcript" in md
-                  print(f"RESULT {name}: HTTP {r.status_code} | {len(md)}자 | Transcript {'✅' if has else '❌'}")
-                  if not r.ok:
-                      print("   응답:", r.text[:150])
-              except Exception as e:
-                  print(f"RESULT {name}: 예외 {e}")
+          ok = 0
+          for name, url in videos.items():
+              t = fetcher.fetch_fulltext(url)
+              print(f"RESULT {name}: {len(t)}자 | {t[:70]!r}")
+              ok += len(t) >= 700
+          print(f"\n=== 최종: {ok}/{len(videos)} 성공 ===")
+          if ok < len(videos):
+              raise SystemExit("일부 실패")
           PYEOF

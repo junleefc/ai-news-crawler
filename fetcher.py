@@ -33,7 +33,7 @@ def _trafilatura(url):
     return ""
 
 
-def _firecrawl(url, key, attempts=3):
+def _firecrawl(url, key, attempts=3, main_only=True):
     """일시적 실패(408/429/5xx/타임아웃)는 재시도. 원문이 빈 채로 넘어가면
     검증 단계가 멀쩡한 요약을 '근거 없음'으로 오판하므로 여기서 최대한 확보한다."""
     for i in range(attempts):
@@ -41,7 +41,7 @@ def _firecrawl(url, key, attempts=3):
             r = requests.post(
                 FIRECRAWL_API, timeout=60,
                 headers={"Authorization": f"Bearer {key}"},
-                json={"url": url, "formats": ["markdown"], "onlyMainContent": True},
+                json={"url": url, "formats": ["markdown"], "onlyMainContent": main_only},
             )
             if r.ok:
                 return ((r.json().get("data") or {}).get("markdown") or "").strip()
@@ -64,7 +64,7 @@ def _firecrawl_youtube_transcript(url):
         return ""
     global _fc_used
     _fc_used += 1
-    md = _firecrawl(url, key, attempts=2)
+    md = _firecrawl(url, key, attempts=2, main_only=False)  # True면 Transcript가 잘림
     if not md:
         return ""
     i = md.find("## Transcript")
