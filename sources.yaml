@@ -130,6 +130,16 @@ feeds:
     type: rss
     url: https://www.youtube.com/feeds/videos.xml?channel_id=UChhw6DlKKTQ9mYSpTfXUYqA
 
+  - name: Dwarkesh Patel (YouTube)
+    category: 유튜브
+    type: rss
+    url: https://www.youtube.com/feeds/videos.xml?channel_id=UCXl4i9dYBrFOabk0xGmbkRA
+
+  - name: Anthropic (YouTube)
+    category: 유튜브
+    type: rss
+    url: https://www.youtube.com/feeds/videos.xml?channel_id=UCrDwWp7EBBv4NwvScIpBDOA
+
   # ---------- 뉴스레터/블로그 (조쉬 소스 보완) ----------
   - name: Lenny's Newsletter
     category: 뉴스레터
