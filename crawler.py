@@ -4,6 +4,8 @@ import calendar
 from datetime import datetime, timezone, timedelta
 from urllib.parse import quote_plus
 
+import time
+
 import feedparser
 
 USER_AGENT = "Mozilla/5.0 (compatible; ai-news-crawler/1.0)"
@@ -45,13 +47,19 @@ def crawl(feeds, lookback_hours=26, max_per_feed=15):
             print(f"[warn] {name}: url/query 없음 → 건너뜀")
             continue
 
-        try:
-            parsed = feedparser.parse(url, agent=USER_AGENT)
-        except Exception as e:  # noqa: BLE001
-            print(f"[warn] {name}: 파싱 오류 {e}")
-            continue
-
-        if not parsed.entries:
+        # 유튜브 RSS 등은 일시적 500/빈응답이 종종 있어 한 번 쉬었다 재시도한다.
+        # (재시도 없이는 그날 그 채널이 통째로 0건이 됨)
+        parsed = None
+        for attempt in range(2):
+            try:
+                parsed = feedparser.parse(url, agent=USER_AGENT)
+            except Exception as e:  # noqa: BLE001
+                print(f"[warn] {name}: 파싱 오류 {e}")
+            if parsed is not None and parsed.entries:
+                break
+            if attempt == 0:
+                time.sleep(3)
+        if parsed is None or not parsed.entries:
             print(f"[warn] {name}: 항목 없음 ({url})")
             continue
 
