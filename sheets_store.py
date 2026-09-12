@@ -55,20 +55,27 @@ def append_items(ws, items):
     ws.append_rows(rows, value_input_option="USER_ENTERED")
 
 
-def rows_pending_rating(ws):
-    """슬랙 ts가 있고 아직 평가가 비어있는 행 반환: [(row_index, date, ts, keywords, type, source, title)]"""
+def rows_pending_rating(ws, recheck_noresponse_days=14):
+    """리액션을 확인할 행 반환.
+    - 평가가 비어있는 행 (신규)
+    - '무반응'으로 확정됐지만 최근 N일 이내인 행 (사용자가 밀린 걸 몰아보며
+      늦게 누른 이모지를 다시 주워담기 위함 — 늦은 클릭이 버려지지 않게)"""
+    from datetime import date, timedelta
+    cutoff = (date.today() - timedelta(days=recheck_noresponse_days)).isoformat()
     values = ws.get_all_values()
     pending = []
     for idx, r in enumerate(values[1:], start=2):
         ts = r[TS_COL - 1].strip().lstrip("'") if len(r) >= TS_COL else ""
         rating = r[RATING_COL - 1].strip() if len(r) >= RATING_COL else ""
-        if ts and not rating:
+        recheck = rating == "무반응" and (r[0] or "") >= cutoff
+        if ts and (not rating or recheck):
             pending.append({
                 "row": idx, "date": r[0], "ts": ts,
                 "keywords": r[7] if len(r) > 7 else "",
                 "type": r[2] if len(r) > 2 else "",
                 "source": r[1] if len(r) > 1 else "",
                 "title": r[4] if len(r) > 4 else "",
+                "current": rating,
             })
     return pending
 

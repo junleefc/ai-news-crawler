@@ -1,0 +1,36 @@
+name: Rating Recheck (late clicks)
+
+# 최근 14일 '무반응' 행의 슬랙 리액션을 재스캔해 늦은 클릭을 회수. 발송 없음. 수동 전용.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  recheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Collect late ratings
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+        run: |
+          python - <<'PYEOF'
+          import os, yaml, feedback, sheets_store
+          cfg = yaml.safe_load(open("config.yaml"))
+          ws = sheets_store.open_worksheet(os.environ["SHEET_ID"], "news")
+          pending = sheets_store.rows_pending_rating(ws)
+          re_rows = [p for p in pending if p.get("current") == "무반응"]
+          print(f"재확인 대상: 신규 {len(pending)-len(re_rows)}건 + 무반응 재스캔 {len(re_rows)}건")
+          channel = cfg.get("slack_channel_id", "")
+          n = feedback.collect_ratings(os.environ["SLACK_BOT_TOKEN"], channel, ws,
+                                       sheets_store, cfg.get("rating_emojis", {}),
+                                       cfg.get("feedback_wait_days", 2))
+          print(f"기록/갱신 {n}건")
+          PYEOF

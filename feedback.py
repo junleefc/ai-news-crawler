@@ -41,9 +41,14 @@ def collect_ratings(token, channel, ws, sheets_store, rating_emojis, wait_days=2
                 if label and rx.get("count", 0) >= 2:  # 시드 1 + 사용자 탭 = 2
                     found.add(label)
             if found:
-                results[p["row"]] = next(l for l in PRIORITY if l in found)
-            else:
+                label = next(l for l in PRIORITY if l in found)
+                if label != p.get("current"):
+                    results[p["row"]] = label
+                    if p.get("current") == "무반응":
+                        print(f"   늦은 평가 회수: {label} ← {p['title'][:30]}")
+            elif not p.get("current"):
                 # 반응 없음 → wait_days 지났으면 '무반응'(의견 없음)으로 확정. 학습엔 미반영.
+                # (이미 무반응인 행을 다시 쓰지는 않는다)
                 try:
                     sent = datetime.strptime(p["date"], "%Y-%m-%d").date()
                     if (today - sent).days >= wait_days:
