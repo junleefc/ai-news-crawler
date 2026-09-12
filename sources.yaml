@@ -23,6 +23,13 @@ feeds:
     type: rss
     url: https://venturebeat.com/feed/    # 메인 피드(라이브). /category/ai/feed 는 2026-05에 멈춰서 사용 안 함
 
+  # VentureBeat 직통 피드가 2026-09 초부터 봇 차단(429)으로 클라우드에서 실패 중
+  # → 구글뉴스 경유 백업. 직통이 복구되면 URL 중복/제목 중복 제거가 겹침을 걸러줌.
+  - name: VentureBeat (Google News)
+    category: 뉴스
+    type: googlenews
+    query: site:venturebeat.com AI
+
   - name: MIT Technology Review AI
     category: 뉴스
     type: rss
