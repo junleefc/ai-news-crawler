@@ -19,9 +19,11 @@ API = "https://slack.com/api"
 PRIORITY = ["1-최악", "5-최고", "2-별로", "4-좋음", "3-보통"]
 
 
-def collect_ratings(token, channel, ws, sheets_store, rating_emojis, wait_days=2):
-    """평가 대기 행들의 슬랙 리액션을 읽어 시트에 기록."""
-    pending = sheets_store.rows_pending_rating(ws)
+def collect_ratings(token, channel, ws, sheets_store, rating_emojis, wait_days=2,
+                    recheck_days=14):
+    """평가 대기 행들의 슬랙 리액션을 읽어 시트에 기록.
+    recheck_days: '무반응' 확정 행도 이 기간 내면 다시 확인 (늦은 클릭 회수)."""
+    pending = sheets_store.rows_pending_rating(ws, recheck_noresponse_days=recheck_days)
     if not pending:
         print("   평가 대기 항목 없음")
         return 0

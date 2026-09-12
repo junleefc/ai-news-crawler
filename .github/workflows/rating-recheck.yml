@@ -31,6 +31,7 @@ jobs:
           channel = cfg.get("slack_channel_id", "")
           n = feedback.collect_ratings(os.environ["SLACK_BOT_TOKEN"], channel, ws,
                                        sheets_store, cfg.get("rating_emojis", {}),
-                                       cfg.get("feedback_wait_days", 2))
+                                       cfg.get("feedback_wait_days", 2),
+                                       recheck_days=9999)  # 일회성 전체 백필
           print(f"기록/갱신 {n}건")
           PYEOF
