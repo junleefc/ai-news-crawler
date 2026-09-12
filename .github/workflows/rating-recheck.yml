@@ -25,7 +25,7 @@ jobs:
           import os, yaml, feedback, sheets_store
           cfg = yaml.safe_load(open("config.yaml"))
           ws = sheets_store.open_worksheet(os.environ["SHEET_ID"], "news")
-          pending = sheets_store.rows_pending_rating(ws)
+          pending = sheets_store.rows_pending_rating(ws, recheck_noresponse_days=9999)  # 일회성 전체 백필
           re_rows = [p for p in pending if p.get("current") == "무반응"]
           print(f"재확인 대상: 신규 {len(pending)-len(re_rows)}건 + 무반응 재스캔 {len(re_rows)}건")
           channel = cfg.get("slack_channel_id", "")
