@@ -101,41 +101,49 @@ feeds:
   # ---------- 유튜브 (조쉬의 프로덕트레터 원본 소스 채널) ----------
   # 영상은 자막을 본문으로 사용 (fetcher가 yt-dlp로 자동 추출)
   - name: Lenny's Podcast (YouTube)
+    lookback_hours: 168   # 영상·에세이는 7일 창 (탈락해도 일주일 재도전)
     category: 유튜브
     type: rss
     url: https://www.youtube.com/feeds/videos.xml?channel_id=UC6t1O76G0jYXOAoYCm153dA
 
   - name: Y Combinator (YouTube)
+    lookback_hours: 168   # 영상·에세이는 7일 창 (탈락해도 일주일 재도전)
     category: 유튜브
     type: rss
     url: https://www.youtube.com/feeds/videos.xml?channel_id=UCcefcZRL2oaA_uBNeo5UOWg
 
   - name: Greg Isenberg (YouTube)
+    lookback_hours: 168   # 영상·에세이는 7일 창 (탈락해도 일주일 재도전)
     category: 유튜브
     type: rss
     url: https://www.youtube.com/feeds/videos.xml?channel_id=UCPjNBjflYl0-HQtUvOx0Ibw
 
   - name: a16z (YouTube)
+    lookback_hours: 168   # 영상·에세이는 7일 창 (탈락해도 일주일 재도전)
     category: 유튜브
     type: rss
     url: https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA
 
   - name: Sequoia Capital (YouTube)
+    lookback_hours: 168   # 영상·에세이는 7일 창 (탈락해도 일주일 재도전)
     category: 유튜브
     type: rss
     url: https://www.youtube.com/feeds/videos.xml?channel_id=UCWrF0oN6unbXrWsTN7RctTw
 
   - name: Starter Story (YouTube)
+    lookback_hours: 168   # 영상·에세이는 7일 창 (탈락해도 일주일 재도전)
     category: 유튜브
     type: rss
     url: https://www.youtube.com/feeds/videos.xml?channel_id=UChhw6DlKKTQ9mYSpTfXUYqA
 
   - name: Dwarkesh Patel (YouTube)
+    lookback_hours: 168   # 영상·에세이는 7일 창 (탈락해도 일주일 재도전)
     category: 유튜브
     type: rss
     url: https://www.youtube.com/feeds/videos.xml?channel_id=UCXl4i9dYBrFOabk0xGmbkRA
 
   - name: Anthropic (YouTube)
+    lookback_hours: 168   # 영상·에세이는 7일 창 (탈락해도 일주일 재도전)
     category: 유튜브
     type: rss
     url: https://www.youtube.com/feeds/videos.xml?channel_id=UCrDwWp7EBBv4NwvScIpBDOA
@@ -147,6 +155,7 @@ feeds:
     url: https://www.lennysnewsletter.com/feed
 
   - name: Steve Yegge (Medium)
+    lookback_hours: 168   # 영상·에세이는 7일 창 (탈락해도 일주일 재도전)
     category: 블로그
     type: rss
     url: https://steve-yegge.medium.com/feed

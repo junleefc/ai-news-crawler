@@ -70,7 +70,12 @@ def main():
 
     print("2) 중복 제거...")
     seen = sheets_store.existing_urls(ws)
-    items = [it for it in items if it["url"] not in seen][: cfg.get("candidate_cap", 90)]
+    items = [it for it in items if it["url"] not in seen]
+    # 후보 상한은 일반 기사에만 적용. 유튜브 등 긴 창(evergreen) 항목은
+    # 최신순 정렬상 뒤쪽이라 상한에 잘리기 쉬워 따로 보존한다.
+    ever = [it for it in items if it.get("evergreen")]
+    normal = [it for it in items if not it.get("evergreen")][: cfg.get("candidate_cap", 90)]
+    items = normal + ever
     print(f"   신규 후보 {len(items)}건")
 
     if not items:

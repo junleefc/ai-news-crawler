@@ -125,8 +125,8 @@ def _generalize_categories(rated, liked_kw, disliked_kw, api_key, model):
     '허깅페이스 해킹' → 'AI 보안 사고 심층 분석' 같은 식."""
     if not api_key or not model:
         return None
-    liked_titles = [r["title"] for r in rated if r["rating"] in ("5-최고", "4-좋음")][-30:]
-    bad_titles = [r["title"] for r in rated if r["rating"] in ("1-최악", "2-별로")][-30:]
+    liked_titles = [r["title"] for r in rated if r["rating"] in ("5-최고", "4-좋음")][-50:]
+    bad_titles = [r["title"] for r in rated if r["rating"] in ("1-최악", "2-별로")][-50:]
     if not liked_titles:
         return None
     prompt = (

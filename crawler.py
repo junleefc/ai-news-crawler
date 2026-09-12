@@ -35,12 +35,16 @@ def _clean(text, limit=500):
 
 def crawl(feeds, lookback_hours=26, max_per_feed=15):
     """설정된 피드들을 돌며 최근 기사만 수집. dict 리스트 반환."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
     items = []
     seen_titles = set()
 
     for feed in feeds:
         name = feed.get("name", "?")
+        # 피드별 수집 창 오버라이드. 유튜브 인터뷰처럼 유통기한이 긴 콘텐츠는
+        # 7일 창으로 잡아, 하루 탈락해도 일주일간 재도전하게 한다.
+        # (이미 발송된 것은 URL 중복 제거가 걸러줌)
+        fb_hours = feed.get("lookback_hours", lookback_hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=fb_hours)
         ftype = feed.get("type", "rss")
         url = _google_news_rss(feed["query"]) if ftype == "googlenews" else feed.get("url", "")
         if not url:
@@ -86,6 +90,7 @@ def crawl(feeds, lookback_hours=26, max_per_feed=15):
             items.append({
                 "title": title,
                 "url": link,
+                "evergreen": fb_hours > 48,  # 긴 창 피드(영상 등) — 후보 상한에서 안 잘리게
                 "source": name,
                 "category": feed.get("category", "기타"),
                 "published": published.isoformat() if published else "",
